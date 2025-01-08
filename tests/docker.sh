@@ -1,5 +1,9 @@
 #!/bin/bash -ex
 
+wget https://github.com/docker-library/php/raw/refs/heads/master/8.4/alpine3.21/fpm/Dockerfile
+
+sed 's/-O2/-O3 -g/g;s/strip --strip-all/echo/g' -i Dockerfile
+
 docker login --username "$DOCKER_USERNAME" --password "$DOCKER_PASSWORD"
 
 has_arm=0
@@ -26,44 +30,32 @@ for f in 192.168.1.10 192.168.69.236 192.168.69.233 192.168.69.207 192.168.69.13
 	fi
 done
 
-arches=""
-if [ $has_x86 -eq 1 ]; then
-	arches="$arches amd64"
-fi
-
-if [ $has_arm -eq 1 ]; then
-	arches="$arches arm64"
-fi
-
-if [ $has_riscv -eq 1 ]; then
-	arches="$arches riscv64"
-fi
+arches="amd64 arm64 riscv64"
 
 echo "Building for $arches"
 
 join_images() {
-	if [ "$1" == "debian" ]; then
-		docker buildx imagetools create -t danog/madelineproto:$2 danog/madelineproto:next-$1-{arm,amd}64
-	else
-		docker buildx imagetools create -t danog/madelineproto:$2 danog/madelineproto:next-$1-{arm,amd,riscv}64
-	fi
+	docker buildx imagetools create -t danog/madelineproto:$2 danog/madelineproto:next-$1-{arm,amd,riscv}64
 }
 
 for f in alpine; do
+	pids=""
 	for arch in $arches; do
 		cp tests/dockerfiles/Dockerfile.$f Dockerfile.$arch
-		if [ "$arch" == "riscv64" ]; then
-			if [ "$f" == "debian" ]; then continue; fi
-			sed "s|FROM .*|FROM danog/php:8.2-fpm-$f|" -i Dockerfile.$arch
-		fi
+		cp tests/dockerfiles/docker-php* .
+
+		sed "s|FROM .*||" -i Dockerfile.$arch
+		cat Dockerfile Dockerfile.$arch > Dockerfile.final.$arch
+
 		docker buildx build --platform linux/$arch . \
-			-f Dockerfile.$arch \
+			-f Dockerfile.final.$arch \
 			-t danog/madelineproto:next-$f-$arch \
 			--cache-from danog/madelineproto:next-$f-$arch \
 			--cache-to type=inline \
 			--push &
+		pids="$pids $!"
 	done
-	wait
+	for pid in $pids; do wait $pid; done
 
 	join_images $f next-$f
 

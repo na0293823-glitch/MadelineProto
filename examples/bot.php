@@ -14,7 +14,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  *
  * @author    Daniil Gentili <daniil@daniil.it>
- * @copyright 2016-2023 Daniil Gentili <daniil@daniil.it>
+ * @copyright 2016-2025 Daniil Gentili <daniil@daniil.it>
  * @license   https://opensource.org/licenses/AGPL-3.0 AGPLv3
  * @link https://docs.madelineproto.xyz MadelineProto documentation
  */
@@ -30,9 +30,11 @@ use danog\MadelineProto\EventHandler\Filter\FilterText;
 use danog\MadelineProto\EventHandler\Filter\FilterTextCaseInsensitive;
 use danog\MadelineProto\EventHandler\Message;
 use danog\MadelineProto\EventHandler\Message\ChannelMessage;
+use danog\MadelineProto\EventHandler\Message\PrivateMessage;
 use danog\MadelineProto\EventHandler\Message\Service\DialogPhotoChanged;
 use danog\MadelineProto\EventHandler\Plugin\RestartPlugin;
 use danog\MadelineProto\EventHandler\SimpleFilter\FromAdmin;
+use danog\MadelineProto\EventHandler\SimpleFilter\HasAudio;
 use danog\MadelineProto\EventHandler\SimpleFilter\Incoming;
 use danog\MadelineProto\EventHandler\SimpleFilter\IsReply;
 use danog\MadelineProto\Logger;
@@ -288,6 +290,16 @@ class MyEventHandler extends SimpleEventHandler
     public function callVoip(Incoming&Message $message): void
     {
         $this->requestCall($message->senderId)->play(new RemoteUrl('http://icestreaming.rai.it/1.mp3'));
+    }
+
+    // Plays incoming audio files into a Telegram call
+    #[Handler]
+    public function playAudio(Incoming&PrivateMessage&HasAudio $message): void
+    {
+        if (!$this->isSelfUser()) {
+            return;
+        }
+        $this->requestCall($message->senderId)->play($message->media->getStream());
     }
 
     #[Handler]

@@ -11,7 +11,8 @@ RUN apk add --no-cache make g++ && \
 
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
-RUN chmod +x /usr/local/bin/install-php-extensions && \
+RUN sed 's/-O2/-O3 -g/g;s/strip --strip-all/echo/g' -i /usr/local/bin/install-php-extensions && \
+    chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions pcntl uv-beta ffi pgsql memprof intl gmp mbstring pdo_mysql xml dom iconv zip igbinary gd && \
     rm /usr/local/bin/install-php-extensions
 

@@ -325,4 +325,28 @@ interface Bots
      * @return array{_: 'starRefProgram', bot_id: int, commission_permille: int, duration_months?: int, end_date?: int, daily_revenue_per_user?: array{_: 'starsAmount', amount: int, nanos: int}} @see https://docs.madelineproto.xyz/API_docs/types/StarRefProgram.html
      */
     public function updateStarRefProgram(array|int|string|null $bot = null, int|null $commission_permille = 0, int|null $duration_months = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): array;
+
+    /**
+     *
+     *
+     * @param bool $enabled
+     * @param array|int|string $bot @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
+     * @param array|int|string $peer @see https://docs.madelineproto.xyz/API_docs/types/InputPeer.html
+     * @param string $custom_description
+     * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
+     * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
+     * @param ?\Amp\Cancellation $cancellation Cancellation
+     */
+    public function setCustomVerification(bool|null $enabled = null, array|int|string|null $bot = null, array|int|string|null $peer = null, string|null $custom_description = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): bool;
+
+    /**
+     *
+     *
+     * @param array|int|string $bot @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
+     * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
+     * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
+     * @param ?\Amp\Cancellation $cancellation Cancellation
+     * @return array{_: 'users.users', users: list<array|int|string>}|array{_: 'users.usersSlice', count: int, users: list<array|int|string>} @see https://docs.madelineproto.xyz/API_docs/types/users.Users.html
+     */
+    public function getBotRecommendations(array|int|string|null $bot = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): array;
 }

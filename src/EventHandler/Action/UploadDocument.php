@@ -9,7 +9,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  *
  * @author    Amir Hossein Jafari <amirhosseinjafari8228@gmail.com>
- * @copyright 2016-2023 Amir Hossein Jafari <amirhosseinjafari8228@gmail.com>
+ * @copyright 2016-2025 Amir Hossein Jafari <amirhosseinjafari8228@gmail.com>
  * @license   https://opensource.org/licenses/AGPL-3.0 AGPLv3
  * @link https://docs.madelineproto.xyz MadelineProto documentation
  */

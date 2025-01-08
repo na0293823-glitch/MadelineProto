@@ -44,7 +44,6 @@ export TEST_USERNAME=danogentili
 export TEST_DESTINATION_GROUPS='["@danogentili"]'
 export MTPROTO_SETTINGS='{"logger":{"logger_level":5}}'
 
-echo "PHP: $php"
 echo "Branch: $BRANCH"
 echo "Commit: $COMMIT"
 echo "Latest tag: $CI_COMMIT_TAG"

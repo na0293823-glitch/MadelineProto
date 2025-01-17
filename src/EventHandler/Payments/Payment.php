@@ -18,6 +18,7 @@ namespace danog\MadelineProto\EventHandler\Payments;
 
 use danog\MadelineProto\EventHandler\Update;
 use danog\MadelineProto\MTProto;
+use danog\MadelineProto\TL\Types\Bytes;
 
 /**
  * This object contains information about an incoming pre-checkout query.
@@ -29,7 +30,7 @@ class Payment extends Update
     /** User who sent the query */
     public readonly int $userId;
     /** Bot specified invoice payload */
-    public readonly string $payload;
+    public readonly Bytes $payload;
     /** Order info provided by the user */
     public readonly ?PaymentRequestedInfo $info;
     /** Identifier of the shipping option chosen by the user */
@@ -45,7 +46,7 @@ class Payment extends Update
         $this->queryId = $rawRequestedPayment['query_id'];
         $this->userId = $rawRequestedPayment['user_id'];
         $this->payload = $rawRequestedPayment['payload'];
-        $this->info = isset($rawRequestedPayment['payload']) ? new PaymentRequestedInfo(
+        $this->info = isset($rawRequestedPayment['info']) ? new PaymentRequestedInfo(
             $rawRequestedPayment['name'],
             $rawRequestedPayment['phone'],
             $rawRequestedPayment['email'],

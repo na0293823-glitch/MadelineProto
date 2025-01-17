@@ -66,6 +66,7 @@ use danog\MadelineProto\EventHandler\Message\Service\DialogDeleteMessages;
 use danog\MadelineProto\EventHandler\Message\Service\DialogGameScore;
 use danog\MadelineProto\EventHandler\Message\Service\DialogGeoProximityReached;
 use danog\MadelineProto\EventHandler\Message\Service\DialogGiftPremium;
+use danog\MadelineProto\EventHandler\Message\Service\DialogGiftStars;
 use danog\MadelineProto\EventHandler\Message\Service\DialogGroupCall\GroupCall;
 use danog\MadelineProto\EventHandler\Message\Service\DialogGroupCall\GroupCallInvited;
 use danog\MadelineProto\EventHandler\Message\Service\DialogGroupCall\GroupCallScheduled;
@@ -74,6 +75,8 @@ use danog\MadelineProto\EventHandler\Message\Service\DialogMemberJoinedByRequest
 use danog\MadelineProto\EventHandler\Message\Service\DialogMemberLeft;
 use danog\MadelineProto\EventHandler\Message\Service\DialogMembersJoined;
 use danog\MadelineProto\EventHandler\Message\Service\DialogMessagePinned;
+use danog\MadelineProto\EventHandler\Message\Service\DialogPaymentSent;
+use danog\MadelineProto\EventHandler\Message\Service\DialogPaymentSentMe;
 use danog\MadelineProto\EventHandler\Message\Service\DialogPeerRequested;
 use danog\MadelineProto\EventHandler\Message\Service\DialogPhoneCall;
 use danog\MadelineProto\EventHandler\Message\Service\DialogPhotoChanged;
@@ -89,6 +92,8 @@ use danog\MadelineProto\EventHandler\Message\Service\DialogTopicCreated;
 use danog\MadelineProto\EventHandler\Message\Service\DialogTopicEdited;
 use danog\MadelineProto\EventHandler\Message\Service\DialogWebView;
 use danog\MadelineProto\EventHandler\Payments\Payment;
+use danog\MadelineProto\EventHandler\Payments\PaymentCharge;
+use danog\MadelineProto\EventHandler\Payments\PaymentRequestedInfo;
 use danog\MadelineProto\EventHandler\Payments\StarGift;
 use danog\MadelineProto\EventHandler\Pinned;
 use danog\MadelineProto\EventHandler\Pinned\PinnedChannelMessages;
@@ -133,7 +138,6 @@ use danog\MadelineProto\TL\Types\Button;
 use danog\MadelineProto\UpdateHandlerType;
 use danog\MadelineProto\VoIP\DiscardReason;
 use danog\MadelineProto\VoIPController;
-use DialogGiftStars;
 use Revolt\EventLoop;
 use SplQueue;
 use Throwable;
@@ -721,6 +725,38 @@ trait UpdateHandler
                             : null
                     ) : null,
                     $message['action']['convert_stars'],
+                ),
+                'messageActionPaymentSent' => new DialogPaymentSent(
+                    $this,
+                    $message,
+                    $info,
+                    $message['action']['recurring_init'] ?? null,
+                    $message['action']['recurring_used'] ?? null,
+                    $message['action']['currency'],
+                    $message['action']['total_amount'],
+                    $message['action']['invoice_slug'] ?? null,
+                    $message['action']['subscription_until_date'] ?? null
+                ),
+                'messageActionPaymentSentMe' => new DialogPaymentSentMe(
+                    $this,
+                    $message,
+                    $info,
+                    $message['action']['recurring_init'] ?? null,
+                    $message['action']['recurring_used'] ?? null,
+                    $message['action']['currency'],
+                    $message['action']['total_amount'],
+                    $message['action']['payload'],
+                    isset($message['action']['info']) ? new PaymentRequestedInfo(
+                        $message['action']['info']['name'],
+                        $message['action']['info']['phone'],
+                        $message['action']['info']['email']
+                    ) : null,
+                    $message['action']['shipping_option_id'] ?? null,
+                    new PaymentCharge(
+                        $message['action']['charge']['id'],
+                        $message['action']['charge']['provider_charge_id']
+                    ),
+                    $message['action']['subscription_until_date'] ?? null
                 ),
                 'messageActionGiftPremium' => new DialogGiftPremium(
                     $this,

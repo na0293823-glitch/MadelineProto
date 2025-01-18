@@ -269,6 +269,7 @@ final class Connection
                 return $this;
             }
             $this->createSession();
+            var_dump("Creating {$this->datacenterId}");
             foreach ($this->shared->getCtxs() as $ctx) {
                 $this->API->logger("Connecting to DC {$this->datacenterId} via $ctx ", Logger::WARNING);
                 try {

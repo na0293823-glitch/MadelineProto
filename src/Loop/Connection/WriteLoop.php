@@ -54,12 +54,14 @@ final class WriteLoop extends Loop
 
     private readonly bool $isHttp;
 
+    private int $resendTimeout;
     /**
      * Constructor function.
      */
     public function __construct(Connection $connection)
     {
         $this->init2($connection);
+        $this->resendTimeout = $this->API->getSettings()->getRpc()->getRpcResendTimeout();
     }
     /**
      * Main loop.
@@ -107,52 +109,37 @@ final class WriteLoop extends Loop
             $first = false;
         }
     }
-    public function unencryptedWriteLoop(): bool
+    public function unencryptedWriteLoop(): void
     {
         if ($queue = $this->connection->unencrypted_check_queue) {
             $this->connection->unencrypted_check_queue = [];
             foreach ($queue as $msg) {
+                // TODO: wait for actual re-queueing
                 $this->connection->methodRecall($msg);
             }
         }
-        while ($this->connection->pendingOutgoing) {
-            $skipped_all = true;
-            foreach ($this->connection->pendingOutgoing as $k => $message) {
-                if ($this->shared->hasTempAuthKey()) {
-                    return false;
-                }
-                if (!$message->unencrypted) {
-                    continue;
-                }
-                if ($message->getState() & MTProtoOutgoingMessage::STATE_REPLIED) {
-                    unset($this->connection->pendingOutgoing[$k]);
-                    $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-                    continue;
-                }
-                $skipped_all = false;
-                $this->API->logger("Sending $message as unencrypted message to DC $this->datacenter", Logger::ULTRA_VERBOSE);
-                $message_id = $message->getMsgId() ?? $this->connection->msgIdHandler->generateMessageId();
-                $length = \strlen($message->getSerializedBody());
-                $pad_length = -$length & 15;
-                $pad_length += 16 * Tools::randomInt(modulus: 16);
-                $pad = Tools::random($pad_length);
-                $buffer = $this->connection->stream->getWriteBuffer($total_len = 8 + 8 + 4 + $pad_length + $length);
-                $buffer->bufferWrite("\0\0\0\0\0\0\0\0".Tools::packSignedLong($message_id).Tools::packUnsignedInt($length).$message->getSerializedBody().$pad);
-                $this->connection->httpSent();
-                $this->connection->outgoingBytesCtr?->incBy($total_len);
+        while ($this->connection->unencryptedPendingOutgoing->prev !== $this->connection->unencryptedPendingOutgoing) {
+            $message = $this->connection->unencryptedPendingOutgoing->prev;
+            \assert($message instanceof MTProtoOutgoingMessage);
 
-                $this->API->logger("Sent $message as unencrypted message to DC $this->datacenter!", Logger::ULTRA_VERBOSE);
+            $this->API->logger("Sending $message as unencrypted message to DC $this->datacenter", Logger::ULTRA_VERBOSE);
+            $serialized = $message->getSerializedBody();
 
-                unset($this->connection->pendingOutgoing[$k]);
-                $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-                $message->setMsgId($message_id);
-                $message->sent();
-            }
-            if ($skipped_all) {
-                return true;
-            }
+            $message_id = $message->getMsgId() ?? $this->connection->msgIdHandler->generateMessageId();
+            $length = \strlen($serialized);
+            $pad_length = -$length & 15;
+            $pad_length += 16 * Tools::randomInt(modulus: 16);
+            $pad = Tools::random($pad_length);
+            $buffer = $this->connection->stream->getWriteBuffer($total_len = 8 + 8 + 4 + $pad_length + $length);
+            $buffer->bufferWrite("\0\0\0\0\0\0\0\0".Tools::packSignedLong($message_id).Tools::packUnsignedInt($length).$serialized.$pad);
+            $this->connection->httpSent();
+            $this->connection->outgoingBytesCtr?->incBy($total_len);
+
+            $this->API->logger("Sent $message as unencrypted message to DC $this->datacenter!", Logger::ULTRA_VERBOSE);
+
+            $message->setMsgId($message_id);
+            $message->sent();
         }
-        return false;
     }
     public function encryptedWriteLoop(bool $first): bool
     {
@@ -160,13 +147,14 @@ final class WriteLoop extends Loop
             if (!$this->shared->hasTempAuthKey()) {
                 return false;
             }
-            if (!$first && !$this->connection->pendingOutgoing) {
-                return false;
-            }
-
             if ($check = $this->connection->check_queue) {
                 $this->connection->check_queue = [];
                 $deferred = new DeferredFuture();
+                $deferred->getFuture()->catch(function (): void {
+                    $this->API->logger("Got exception in check loop for DC {$this->datacenter}");
+                    $this->API->logger((string) $e);
+                });
+
                 $list = '';
                 $msgIds = [];
                 foreach ($check as $msg) {
@@ -182,18 +170,16 @@ final class WriteLoop extends Loop
                     $list .= $msg->constructor.', ';
                 }
                 $this->API->logger("Still missing {$list} on DC {$this->datacenter}, sending state request", Logger::ERROR);
-                $this->connection->objectCall('msgs_state_req', ['msg_ids' => $msgIds], $deferred);
-                EventLoop::queue(function () use ($deferred, $check): void {
+                $this->connection->objectCall('msgs_state_req', ['msg_ids' => $msgIds, 'cancellation' => new \Amp\TimeoutCancellation(self::LONG_POLL_TIMEOUT)], $deferred);
+                $deferred->getFuture()->map(function (array|\Closure $result) use ($check): void {
                     try {
-                        $result = $deferred->getFuture()->await(new TimeoutCancellation($this->pollTimeout));
                         if (\is_callable($result)) {
                             throw $result();
                         }
-                        $reply = [];
                         foreach (str_split($result['info']) as $key => $chr) {
                             $message = $check[$key];
                             if ($message->hasReply()) {
-                                $this->API->logger("Already got response for and forgot about message ID $message_id");
+                                $this->API->logger("Already got response for and forgot about message $message");
                                 continue;
                             }
                             $chr = \ord($chr);
@@ -231,17 +217,12 @@ final class WriteLoop extends Loop
                                     break;
                             }
                         }
-                        //} catch (CancelledException) {
-                        //$this->API->logger("We did not receive a response for {$this->pollTimeout} seconds: reconnecting and exiting check loop on DC {$this->datacenter}");
-                        //EventLoop::queue($this->connection->reconnect(...));
                     } catch (\Throwable $e) {
                         $this->API->logger("Got exception in check loop for DC {$this->datacenter}");
                         $this->API->logger((string) $e);
                     }
                 });
             }
-
-            ksort($this->connection->pendingOutgoing);
 
             $messages = [];
             $keys = [];
@@ -254,21 +235,15 @@ final class WriteLoop extends Loop
 
             $has_state = false;
             $has_resend = false;
-            foreach ($this->connection->pendingOutgoing as $k => $message) {
-                if ($message->unencrypted) {
-                    continue;
+
+            $message = $this->connection->mainPendingOutgoing;
+            while (true) {
+                $message = $message->prev;
+                if ($message === $this->connection->mainPendingOutgoing) {
+                    break;
                 }
-                if ($message->getState() & MTProtoOutgoingMessage::STATE_REPLIED) {
-                    unset($this->connection->pendingOutgoing[$k]);
-                    $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-                    $this->API->logger("Skipping resending of $message, we already got a reply in DC $this->datacenter");
-                    continue;
-                }
-                if ($message instanceof Container) {
-                    unset($this->connection->pendingOutgoing[$k]);
-                    $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-                    continue;
-                }
+                \assert($message instanceof MTProtoOutgoingMessage);
+
                 $constructor = $message->constructor;
                 if ($this->shared->getGenericSettings()->getAuth()->getPfs() && !$this->shared->isBound() && !$this->connection->isCDN() && $message->isMethod && $constructor !== 'auth.bindTempAuthKey') {
                     $this->API->logger("Skipping $message due to unbound keys in DC $this->datacenter");
@@ -421,7 +396,6 @@ final class WriteLoop extends Loop
                 $message_id = $this->connection->msgIdHandler->generateMessageId();
                 $this->connection->pendingOutgoing[$this->connection->pendingOutgoingKey] = $ct = new Container($this->connection, $keys);
                 $this->connection->outgoingCtr?->inc();
-                $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
                 $keys[$this->connection->pendingOutgoingKey++] = $ct;
                 $message_data = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'msg_container', 'messages' => $messages], 'container');
                 $message_data_length = \strlen($message_data);
@@ -459,15 +433,10 @@ final class WriteLoop extends Loop
             }
 
             foreach ($keys as $key => $message) {
-                unset($this->connection->pendingOutgoing[$key]);
                 $message->sent();
             }
             $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
         } while ($this->connection->pendingOutgoing && !$skipped);
-        if (empty($this->connection->pendingOutgoing)) {
-            $this->connection->pendingOutgoing = [];
-            $this->connection->pendingOutgoingKey = 0;
-        }
         return $skipped;
     }
     /**

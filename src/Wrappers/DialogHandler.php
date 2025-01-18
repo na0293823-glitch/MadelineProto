@@ -71,6 +71,7 @@ trait DialogHandler
                         ...$this->botDialogsUpdatesState,
                         'pts_total_limit' => 2147483647,
                         'floodWaitLimit' => 86400,
+                        'userRelated' => true,
                     ],
                 );
                 switch ($result['_']) {

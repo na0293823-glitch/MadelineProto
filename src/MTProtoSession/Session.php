@@ -25,6 +25,7 @@ use danog\BetterPrometheus\BetterCounter;
 use danog\BetterPrometheus\BetterGauge;
 use danog\BetterPrometheus\BetterHistogram;
 use danog\MadelineProto\Logger;
+use danog\MadelineProto\MTProto\LinkedList;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\Tools;
@@ -82,30 +83,16 @@ trait Session
      * @var array<MTProtoOutgoingMessage>
      */
     public array $unencrypted_new_outgoing = [];
+
     /**
      * Pending outgoing messages.
-     *
-     * @var SplQueue<MTProtoOutgoingMessage>
      */
-    public SplQueue $pendingOutgoing;
+    public LinkedList $unencryptedPendingOutgoing;
     /**
      * Pending outgoing messages.
-     *
-     * @var SplQueue<MTProtoOutgoingMessage>
      */
-    public SplQueue $unencryptedPendingOutgoing;
-    /**
-     * Pending outgoing messages.
-     *
-     * @var SplQueue<MTProtoOutgoingMessage>
-     */
-    public SplQueue $authPendingOutgoing;
-    /**
-     * Pending outgoing messages.
-     *
-     * @var SplQueue<MTProtoOutgoingMessage>
-     */
-    public SplQueue $mainPendingOutgoing;
+    public LinkedList $mainPendingOutgoing;
+
     /**
      * Time delta with server.
      *

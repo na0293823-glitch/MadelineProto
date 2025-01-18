@@ -1619,7 +1619,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     public function fullGetSelf(): array|false
     {
         try {
-            $this->authorization = ['user' => ($this->methodCallAsyncRead('users.getUsers', ['id' => [['_' => 'inputUserSelf']]]))[0]];
+            $this->authorization = ['user' => ($this->methodCallAsyncRead('users.getUsers', ['id' => [['_' => 'inputUserSelf']], 'userRelated' => true]))[0]];
         } catch (RPCErrorException $e) {
             $this->logger->logger($e->getMessage());
             return false;

@@ -38,6 +38,9 @@ use function time;
  */
 class MTProtoOutgoingMessage extends MTProtoMessage
 {
+    public self|LinkedList $next;
+    public self|LinkedList $prev;
+
     /**
      * The message was created.
      */
@@ -92,11 +95,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     private ?string $checkTimer = null;
 
     /**
-     * Whether this message is related to a user, as in getting a successful reply means we have auth.
-     */
-    public readonly bool $userRelated;
-
-    /**
      * Create outgoing message.
      *
      * @param array $body        Body
@@ -112,6 +110,10 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         public readonly string $type,
         public readonly bool $isMethod,
         public readonly bool $unencrypted,
+        /**
+         * Whether this message is related to a user, as in getting a successful reply means we have auth.
+         */
+        public readonly bool $userRelated,
         public readonly ?Cancellation $cancellation,
         public readonly ?string $subtype = null,
         /**
@@ -130,8 +132,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         public readonly ?string $businessConnectionId = null,
         private ?DeferredFuture $resultDeferred = null,
     ) {
-        $this->userRelated = $constructor === 'users.getUsers' && $body === ['id' => [['_' => 'inputUserSelf']]] || $constructor === 'auth.exportAuthorization' || $constructor === 'updates.getDifference';
-
         parent::__construct(!isset(MTProtoMessage::NOT_CONTENT_RELATED[$constructor]));
 
         $cancellation?->subscribe(function (CancelledException $e): void {
@@ -188,6 +188,8 @@ class MTProtoOutgoingMessage extends MTProtoMessage
             ]);
         }
         $this->state |= self::STATE_SENT;
+        $this->next->prev = $this->prev;
+        $this->prev->next = $this->next;
         $this->sent = hrtime(true);
         if ($this->contentRelated) {
             $this->checkTimer = EventLoop::delay(

@@ -170,7 +170,7 @@ final class UpdateLoop extends Loop
                 $this->API->logger('Resumed and fetching normal difference...', Logger::ULTRA_VERBOSE);
                 do {
                     try {
-                        $difference = $this->API->methodCallAsyncRead('updates.getDifference', ['pts' => $state->pts(), 'date' => $state->date(), 'qts' => $state->qts()], $this->API->authorized_dc);
+                        $difference = $this->API->methodCallAsyncRead('updates.getDifference', ['pts' => $state->pts(), 'date' => $state->date(), 'qts' => $state->qts(), 'userRelated' => true], $this->API->authorized_dc);
                         break;
                     } catch (TimeoutError) {
                         delay(1.0);

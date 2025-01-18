@@ -272,7 +272,7 @@ final class DataCenterConnection implements JsonSerializable
                 ) {
                     try {
                         $logger->logger('Trying to copy authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter);
-                        $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000], $authorized_dc_id);
+                        $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true], $authorized_dc_id);
                         $socket->methodCallAsyncRead('auth.importAuthorization', $exported_authorization);
                         $this->authorized(true);
                         break;
@@ -321,32 +321,6 @@ final class DataCenterConnection implements JsonSerializable
     {
         return $this->permAuthKey !== null && $this->permAuthKey->hasAuthKey();
     }
-    public function swapQueue(): void
-    {
-        if ($this->tempAuthKey === null) {
-            foreach ($this->connections as $connection) {
-                $connection->pendingOutgoing = $connection->unencryptedPendingOutgoing;
-            }
-            return;
-        }
-
-        $allOk = $this->tempAuthKey->isInited()
-            && !(
-                $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
-                && !$this->isAuthorized()
-                && !$this->API->isCDN($this->datacenter)
-            );
-
-        if ($allOk) {
-            foreach ($this->connections as $connection) {
-                $connection->pendingOutgoing = $connection->authPendingOutgoing;
-            }
-        } else {
-            foreach ($this->connections as $connection) {
-                $connection->pendingOutgoing = $connection->mainPendingOutgoing;
-            }
-        }
-    }
     /**
      * Set temporary authorization key.
      *
@@ -355,7 +329,6 @@ final class DataCenterConnection implements JsonSerializable
     public function setTempAuthKey(?TempAuthKey $key): void
     {
         $this->tempAuthKey = $key;
-        $this->swapQueue();
     }
     /**
      * Set permanent authorization key.

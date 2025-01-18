@@ -198,6 +198,7 @@ trait CallHandler
             subtype: $methodInfo['subtype'] ?? null,
             isMethod: true,
             unencrypted: !$encrypted,
+            userRelated: isset($args['userRelated']),
             fileRelated: $file,
             previousQueuedMessage: $prev,
             floodWaitLimit: $args['floodWaitLimit'] ?? null,

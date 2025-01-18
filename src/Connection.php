@@ -569,9 +569,15 @@ final class Connection
             $message->setSerializedBody($body);
             unset($body);
         }
-        $this->pendingOutgoing[$this->pendingOutgoingKey++] = $message;
-        $this->outgoingCtr?->inc();
-        $this->pendingOutgoingGauge?->set(\count($this->pendingOutgoing));
+        if ($message->unencrypted) {
+            $message->prev = $this->unencryptedPendingOutgoing->next;
+            $message->prev->next = $message;
+            $this->unencryptedPendingOutgoing->next = $message;
+        } else {
+            $message->prev = $this->mainPendingOutgoing->next;
+            $message->prev->next = $message;
+            $this->mainPendingOutgoing->next = $message;
+        }
         $this->flush();
         $this->connect();
         $promise->await();

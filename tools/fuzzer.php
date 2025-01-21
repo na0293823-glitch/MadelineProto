@@ -54,14 +54,14 @@ $layer = getTL($schema);
 $res = '';
 
 echo "Bot login:".PHP_EOL;
-$bot = new \danog\MadelineProto\API('bot.madeline');
+$bot = new \danog\MadelineProto\API('fuzz_bot.madeline');
 $bot->start();
 $bot->updateSettings($schema);
 Assert::true($bot->isSelfBot(), "bot.madeline is not a bot!");
 $bot->restart();
 
 echo "User login:".PHP_EOL;
-$user = new \danog\MadelineProto\API('user.madeline');
+$user = new \danog\MadelineProto\API('fuzz_user.madeline');
 $user->start();
 $user->updateSettings($schema);
 Assert::true($user->isSelfUser(), "user.madeline is not a user!");

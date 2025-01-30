@@ -118,10 +118,7 @@ final class WriteLoop extends Loop
                 $this->connection->methodRecall($msg);
             }
         }
-        while ($this->connection->unencryptedPendingOutgoing->prev !== $this->connection->unencryptedPendingOutgoing) {
-            $message = $this->connection->unencryptedPendingOutgoing->prev;
-            \assert($message instanceof MTProtoOutgoingMessage);
-
+        while ($message = $this->connection->unencryptedPendingOutgoing->peek()) {
             $this->API->logger("Sending $message as unencrypted message to DC $this->datacenter", Logger::ULTRA_VERBOSE);
             $serialized = $message->getSerializedBody();
 
@@ -239,10 +236,9 @@ final class WriteLoop extends Loop
             $message = $this->connection->mainPendingOutgoing;
             while (true) {
                 $message = $message->prev;
-                if ($message === $this->connection->mainPendingOutgoing) {
+                if (!$message instanceof MTProtoOutgoingMessage) {
                     break;
                 }
-                \assert($message instanceof MTProtoOutgoingMessage);
 
                 $constructor = $message->constructor;
                 if ($this->shared->getGenericSettings()->getAuth()->getPfs() && !$this->shared->isBound() && !$this->connection->isCDN() && $message->isMethod && $constructor !== 'auth.bindTempAuthKey') {
@@ -435,7 +431,7 @@ final class WriteLoop extends Loop
                 $message->sent();
             }
             //$this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-        } while ($this->connection->mainPendingOutgoing->prev !== $this->connection->mainPendingOutgoing && !$skipped);
+        } while (!$this->connection->mainPendingOutgoing->isEmpty() && !$skipped);
         return $skipped;
     }
     /**

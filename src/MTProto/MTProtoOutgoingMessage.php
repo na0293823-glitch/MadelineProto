@@ -160,6 +160,24 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         });
     }
 
+    public function __debugInfo(): array {
+        if (!isset($this->next)) {
+            $next = null;
+        } elseif ($this->next instanceof MTProtoOutgoingMessage) {
+            $next = $this->next;
+        } else {
+            $next = 'head|tail';
+        }
+        if (!isset($this->prev)) {
+            $prev = null;
+        } elseif ($this->prev instanceof MTProtoOutgoingMessage) {
+            $prev = $this->prev;
+        } else {
+            $prev = 'head|tail';
+        }
+        return [(string) $this, 'objId' => spl_object_id($this), 'prev' => $prev, 'next' => $next];
+    }
+
     /**
      * Signal that we're trying to send the message.
      */

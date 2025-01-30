@@ -269,7 +269,6 @@ final class Connection
                 return $this;
             }
             $this->createSession();
-            var_dump("Creating {$this->datacenterId}");
             foreach ($this->shared->getCtxs() as $ctx) {
                 $this->API->logger("Connecting to DC {$this->datacenterId} via $ctx ", Logger::WARNING);
                 try {
@@ -570,17 +569,15 @@ final class Connection
             $message->setSerializedBody($body);
             unset($body);
         }
-        if ($message->unencrypted) {
-            $message->prev = $this->unencryptedPendingOutgoing->next;
-            $message->prev->next = $message;
-            $this->unencryptedPendingOutgoing->next = $message;
-        } else {
-            $message->prev = $this->mainPendingOutgoing->next;
-            $message->prev->next = $message;
-            $this->mainPendingOutgoing->next = $message;
-        }
-        $this->flush();
         $this->connect();
+        if ($message->unencrypted) {
+            $this->unencryptedPendingOutgoing->enqueue($message);
+        } else {
+            $this->mainPendingOutgoing->enqueue($message);
+        }
+        var_dump("Writing $message", $this->unencryptedPendingOutgoing, $this->mainPendingOutgoing);
+        var_dump("Flushing");
+        $this->flush();
         $promise->await();
     }
     /**

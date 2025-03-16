@@ -637,6 +637,7 @@ final class Connection
 
         $this->reader?->stop();
         $this->writer?->stop();
+        $this->pinger?->stop();
         $this->cleanup?->stop();
 
         if (!$temporary) {

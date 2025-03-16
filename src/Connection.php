@@ -575,8 +575,6 @@ final class Connection
         } else {
             $this->mainPendingOutgoing->enqueue($message);
         }
-        var_dump("Writing $message", $this->unencryptedPendingOutgoing, $this->mainPendingOutgoing);
-        var_dump("Flushing");
         $this->flush();
         $promise->await();
     }

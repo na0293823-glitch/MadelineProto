@@ -233,14 +233,15 @@ trait CallHandler
             : $timeout;
         $this->sendMessage(
             new MTProtoOutgoingMessage(
-                cancellation: $cancellation,
                 connection: $this,
                 body: $args,
                 constructor: $object,
                 type: '',
                 isMethod: false,
                 unencrypted: false,
-                resultDeferred: $promise
+                userRelated: false,
+                resultDeferred: $promise,
+                cancellation: $cancellation,
             ),
         );
     }

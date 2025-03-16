@@ -75,7 +75,11 @@ final class WriteLoop extends Loop
                 $this->API->logger("Exiting $this because connection is old");
                 return self::STOP;
             }
-            if ($this->connection->mainPendingOutgoing === $this->connection->mainPendingOutgoing->prev && !$first) {
+            if (($this->shared->hasTempAuthKey()
+                    ? ($this->connection->mainPendingOutgoing === $this->connection->mainPendingOutgoing->prev)
+                    : ($this->connection->unencryptedPendingOutgoing === $this->connection->unencryptedPendingOutgoing->prev)
+                ) && !$first
+            ) {
                 $this->API->logger("No messages, pausing in $this...", Logger::ULTRA_VERBOSE);
                 return self::LONG_POLL_TIMEOUT;
             }
@@ -138,7 +142,7 @@ final class WriteLoop extends Loop
             $message->sent();
         }
     }
-    public function encryptedWriteLoop(bool $first): bool
+    public function encryptedWriteLoop(): bool
     {
         do {
             if (!$this->shared->hasTempAuthKey()) {

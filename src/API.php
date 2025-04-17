@@ -231,6 +231,7 @@ final class API extends AbstractAPI
     /**
      * Reconnect to full instance.
      */
+    #[\Override]
     protected function reconnectFull(): bool
     {
         if ($this->wrapper->getAPI() instanceof Client) {
@@ -354,6 +355,7 @@ final class API extends AbstractAPI
     {
         $this->__construct($this->session->getSessionDirectoryPath());
     }
+    #[\Override]
     public function __sleep(): array
     {
         return ['session'];

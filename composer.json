@@ -62,7 +62,8 @@
         "danog/telegram-entities": "^1.0.4",
         "danog/better-prometheus": "^0.1.1",
         "amphp/http-server": "^3.3.1",
-        "danog/tg-dialog-id": "^1.1.0"
+        "danog/tg-dialog-id": "^1.1.0",
+        "symfony/polyfill-php83": "^1.31"
     },
     "require-dev": {
         "ext-ctype": "*",

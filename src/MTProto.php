@@ -828,6 +828,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * Get logger.
      */
+    #[\Override]
     public function getLogger(): Logger
     {
         return $this->logger;
@@ -965,6 +966,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
                     private readonly MTProto $API
                 ) {
                 }
+                #[\Override]
                 public function handleRequest(ServerRequest $request): ServerResponse
                 {
                     if ($request->getUri()->getPath() === '/metrics') {
@@ -1375,6 +1377,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * Return current settings.
      */
+    #[\Override]
     public function getSettings(): Settings
     {
         return $this->settings;
@@ -1983,6 +1986,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * @internal
      */
+    #[\Override]
     public function getMethodAfterResponseDeserializationCallbacks(): array
     {
         return [];
@@ -1990,6 +1994,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * @internal
      */
+    #[\Override]
     public function getMethodBeforeResponseDeserializationCallbacks(): array
     {
         return [];
@@ -2011,6 +2016,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * @internal
      */
+    #[\Override]
     public function getConstructorAfterDeserializationCallbacks(): array
     {
         return [
@@ -2021,6 +2027,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * @internal
      */
+    #[\Override]
     public function getConstructorBeforeDeserializationCallbacks(): array
     {
         return [];
@@ -2028,6 +2035,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * @internal
      */
+    #[\Override]
     public function getConstructorBeforeSerializationCallbacks(): array
     {
         return [];
@@ -2035,6 +2043,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * @internal
      */
+    #[\Override]
     public function getTypeMismatchCallbacks(): array
     {
         return array_merge(

@@ -54,6 +54,7 @@ final class TLSchema extends SettingsAbstract
      * Whether to enable fuzzing mode (all parameters will be populated with default values).
      */
     protected bool $fuzzMode = false;
+    #[\Override]
     public function __sleep()
     {
         return array_merge(['wasUpgraded'], parent::__sleep());

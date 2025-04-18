@@ -88,6 +88,7 @@ final class Client extends ClientAbstract
      * @param string|int    $function  Function name
      * @param array|Wrapper $arguments Arguments
      */
+    #[\Override]
     public function __call(string|int $function, array|Wrapper $arguments)
     {
         if (\is_array($arguments) && $arguments) {

@@ -611,14 +611,17 @@ final class PeerDatabase implements TLCallback
         ];
     }
 
+    #[\Override]
     public function getMethodAfterResponseDeserializationCallbacks(): array
     {
         return [];
     }
+    #[\Override]
     public function getMethodBeforeResponseDeserializationCallbacks(): array
     {
         return [];
     }
+    #[\Override]
     public function getConstructorAfterDeserializationCallbacks(): array
     {
         return array_merge(
@@ -627,10 +630,12 @@ final class PeerDatabase implements TLCallback
             array_fill_keys(['chatFull', 'channelFull', 'userFull'], [$this->addFullChat(...)]),
         );
     }
+    #[\Override]
     public function getConstructorBeforeDeserializationCallbacks(): array
     {
         return [];
     }
+    #[\Override]
     public function getConstructorBeforeSerializationCallbacks(): array
     {
         return [];
@@ -638,6 +643,7 @@ final class PeerDatabase implements TLCallback
     /**
      * @internal
      */
+    #[\Override]
     public function getTypeMismatchCallbacks(): array
     {
         return [];

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="dev-master@27ea071f70fc1d23e3476a8666e2e9013a7fece1">
+<files psalm-version="dev-master@9b0b4bd058e178ff6e29ebcf6760d89eb3fe04cf">
   <file src="src/API.php">
     <ArgumentTypeCoercion>
       <code><![CDATA[$settings]]></code>
@@ -7,6 +7,10 @@
     <DirectConstructorCall>
       <code><![CDATA[$this->__construct($this->session->getSessionDirectoryPath())]]></code>
     </DirectConstructorCall>
+    <InvalidThrow>
+      <code><![CDATA[throw $e]]></code>
+      <code><![CDATA[throw $e]]></code>
+    </InvalidThrow>
     <MixedArgument>
       <code><![CDATA[$app['api_hash']]]></code>
       <code><![CDATA[$app['api_id']]]></code>
@@ -22,6 +26,9 @@
     <MixedAssignment>
       <code><![CDATA[$app]]></code>
     </MixedAssignment>
+    <PossiblyInvalidMethodCall>
+      <code><![CDATA[getMessage]]></code>
+    </PossiblyInvalidMethodCall>
     <PossiblyNullArgument>
       <code><![CDATA[Logger::$default]]></code>
     </PossiblyNullArgument>
@@ -53,6 +60,9 @@
       <code><![CDATA[API]]></code>
       <code><![CDATA[API]]></code>
     </PropertyNotSetInConstructor>
+    <TaintedTextWithQuotes>
+      <code><![CDATA[$e]]></code>
+    </TaintedTextWithQuotes>
     <TypeDoesNotContainType>
       <code><![CDATA[$errors[$t] > 10]]></code>
       <code><![CDATA[$errors[$t] > 10]]></code>
@@ -71,6 +81,13 @@
     <ArgumentTypeCoercion>
       <code><![CDATA[$eventHandler]]></code>
     </ArgumentTypeCoercion>
+    <InvalidThrow>
+      <code><![CDATA[throw $e]]></code>
+      <code><![CDATA[throw $e]]></code>
+    </InvalidThrow>
+    <PossiblyInvalidMethodCall>
+      <code><![CDATA[getMessage]]></code>
+    </PossiblyInvalidMethodCall>
     <PossiblyNullReference>
       <code><![CDATA[getMessage]]></code>
       <code><![CDATA[isInited]]></code>
@@ -80,6 +97,9 @@
       <code><![CDATA[!$started]]></code>
       <code><![CDATA[!$started]]></code>
     </RedundantCondition>
+    <TaintedTextWithQuotes>
+      <code><![CDATA[$e]]></code>
+    </TaintedTextWithQuotes>
     <TypeDoesNotContainType>
       <code><![CDATA[$errors[$t] > 10]]></code>
       <code><![CDATA[$errors[$t] > 10]]></code>
@@ -119,6 +139,9 @@
     <RedundantConditionGivenDocblockType>
       <code><![CDATA[\is_callable($callable)]]></code>
     </RedundantConditionGivenDocblockType>
+    <TaintedFile>
+      <code><![CDATA[$file]]></code>
+    </TaintedFile>
   </file>
   <file src="src/BotApiFileId.php">
     <DocblockTypeContradiction>
@@ -1014,30 +1037,6 @@
     <PropertyNotSetInConstructor>
       <code><![CDATA[$peersResolved]]></code>
     </PropertyNotSetInConstructor>
-  </file>
-  <file src="src/EventHandler/Filter/FilterBotCommand.php">
-    <ClassMustBeFinal>
-      <code><![CDATA[FilterBotCommand]]></code>
-    </ClassMustBeFinal>
-    <ParseError>
-      <code><![CDATA[#[]]></code>
-    </ParseError>
-  </file>
-  <file src="src/EventHandler/Filter/FilterButtonQueryData.php">
-    <ClassMustBeFinal>
-      <code><![CDATA[FilterButtonQueryData]]></code>
-    </ClassMustBeFinal>
-    <ParseError>
-      <code><![CDATA[#[]]></code>
-    </ParseError>
-  </file>
-  <file src="src/EventHandler/Filter/FilterCommentReply.php">
-    <ClassMustBeFinal>
-      <code><![CDATA[FilterCommentReply]]></code>
-    </ClassMustBeFinal>
-    <ParseError>
-      <code><![CDATA[#[]]></code>
-    </ParseError>
   </file>
   <file src="src/EventHandler/Filter/FilterForwardedFrom.php">
     <PropertyNotSetInConstructor>
@@ -2378,6 +2377,12 @@
       <code><![CDATA[$this->line]]></code>
     </MixedOperand>
   </file>
+  <file src="src/FileCallback.php">
+    <TaintedCallable>
+      <code><![CDATA[$callback]]></code>
+      <code><![CDATA[$callback]]></code>
+    </TaintedCallable>
+  </file>
   <file src="src/FileCallbackInterface.php">
     <MissingReturnType>
       <code><![CDATA[__invoke]]></code>
@@ -2566,6 +2571,9 @@
       <code><![CDATA[$arguments]]></code>
       <code><![CDATA[$arguments]]></code>
     </PossiblyInvalidArgument>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$_GET['cwd']]]></code>
+    </PossiblyInvalidCast>
     <PossiblyInvalidPropertyAssignmentValue>
       <code><![CDATA[$_GET['cwd'] ?? Magic::getcwd()]]></code>
     </PossiblyInvalidPropertyAssignmentValue>
@@ -2624,6 +2632,10 @@
     <PropertyTypeCoercion>
       <code><![CDATA[$this->callbackIds]]></code>
     </PropertyTypeCoercion>
+    <TaintedCallable>
+      <code><![CDATA[$this->callbacks[$payload[0]]]]></code>
+      <code><![CDATA[$this->callbacks[$payload[0]]]]></code>
+    </TaintedCallable>
     <UnsafeInstantiation>
       <code><![CDATA[new $class($this, $ids)]]></code>
     </UnsafeInstantiation>
@@ -2709,6 +2721,17 @@
       <code><![CDATA[$this->optional]]></code>
       <code><![CDATA[$this->stdoutUnbuffered->getResource()]]></code>
     </PossiblyInvalidArgument>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$this->optional]]></code>
+      <code><![CDATA[$this->optional]]></code>
+    </PossiblyInvalidCast>
     <PossiblyInvalidOperand>
       <code><![CDATA[$optional]]></code>
     </PossiblyInvalidOperand>
@@ -2725,6 +2748,24 @@
       <code><![CDATA[$stdout]]></code>
       <code><![CDATA[$stdoutUnbuffered]]></code>
     </PropertyNotSetInConstructor>
+    <TaintedFile>
+      <code><![CDATA[$optional]]></code>
+      <code><![CDATA[$this->optional]]></code>
+      <code><![CDATA[$this->optional]]></code>
+    </TaintedFile>
+    <TaintedHtml>
+      <code><![CDATA[$param]]></code>
+      <code><![CDATA[$param]]></code>
+      <code><![CDATA[$param.PHP_EOL]]></code>
+      <code><![CDATA[$param.PHP_EOL]]></code>
+    </TaintedHtml>
+    <TaintedTextWithQuotes>
+      <code><![CDATA[$param]]></code>
+      <code><![CDATA[$param]]></code>
+      <code><![CDATA[$param]]></code>
+      <code><![CDATA[$param.PHP_EOL]]></code>
+      <code><![CDATA[$param.PHP_EOL]]></code>
+    </TaintedTextWithQuotes>
     <UndefinedVariable>
       <code><![CDATA[$promise]]></code>
     </UndefinedVariable>
@@ -2892,7 +2933,14 @@
       <code><![CDATA[$MTmessage['body']]]></code>
       <code><![CDATA[$message->getSerializedBody()]]></code>
       <code><![CDATA[$message->getSerializedBody()]]></code>
+      <code><![CDATA[$message_id]]></code>
     </PossiblyNullArgument>
+    <PossiblyNullArrayAccess>
+      <code><![CDATA[$message['body']]]></code>
+      <code><![CDATA[$message['bytes']]]></code>
+      <code><![CDATA[$message['msg_id']]]></code>
+      <code><![CDATA[$message['seqno']]]></code>
+    </PossiblyNullArrayAccess>
     <PossiblyNullOperand>
       <code><![CDATA[$message->getSerializedBody()]]></code>
       <code><![CDATA[$this->connection->session_id]]></code>
@@ -2901,6 +2949,9 @@
       <code><![CDATA[getWriteBuffer]]></code>
       <code><![CDATA[getWriteBuffer]]></code>
     </PossiblyNullReference>
+    <PossiblyUndefinedArrayOffset>
+      <code><![CDATA[$messages[0]]]></code>
+    </PossiblyUndefinedArrayOffset>
     <PropertyNotSetInConstructor>
       <code><![CDATA[WriteLoop]]></code>
     </PropertyNotSetInConstructor>
@@ -3346,6 +3397,9 @@
       <code><![CDATA[$this->getSelf()['id']]]></code>
       <code><![CDATA[$this->getSelf()['premium']]]></code>
     </PossiblyInvalidArrayAccess>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$path]]></code>
+    </PossiblyInvalidCast>
     <PossiblyNullArgument>
       <code><![CDATA[$this->authorized_dc]]></code>
       <code><![CDATA[debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['file']]]></code>
@@ -3373,6 +3427,7 @@
       <code><![CDATA[$this->sanitizeReportPeers($userOrId)]]></code>
     </PropertyTypeCoercion>
     <RedundantCondition>
+      <code><![CDATA[$this->updateState]]></code>
       <code><![CDATA[isset($this->wrapper) && $this->isInited()]]></code>
       <code><![CDATA[isset($this->wrapper) && isset(self::$references[$this->getSessionName()])]]></code>
     </RedundantCondition>
@@ -3383,6 +3438,12 @@
       <code><![CDATA[\is_int($dc_id)]]></code>
       <code><![CDATA[isset($this->datacenter)]]></code>
     </RedundantConditionGivenDocblockType>
+    <TaintedTextWithQuotes>
+      <code><![CDATA[$e]]></code>
+    </TaintedTextWithQuotes>
+    <TypeDoesNotContainType>
+      <code><![CDATA[new CombinedUpdatesState]]></code>
+    </TypeDoesNotContainType>
     <UndefinedFunction>
       <code><![CDATA[memprof_dump_pprof($file)]]></code>
       <code><![CDATA[memprof_enabled()]]></code>
@@ -3838,6 +3899,13 @@
     <RiskyCast>
       <code><![CDATA[$_GET['s']]]></code>
     </RiskyCast>
+    <TaintedFile>
+      <code><![CDATA[$f]]></code>
+      <code><![CDATA[$temp]]></code>
+    </TaintedFile>
+    <TaintedHtml>
+      <code><![CDATA[$this->getSessionName()]]></code>
+    </TaintedHtml>
   </file>
   <file src="src/MTProtoTools/Files.php">
     <InvalidNullableReturnType>
@@ -5983,6 +6051,10 @@
       <code><![CDATA[$php[0]]]></code>
       <code><![CDATA[$php[1]]]></code>
     </PossiblyNullArrayAccess>
+    <TaintedFile>
+      <code><![CDATA[$this->sessionDirectoryPath]]></code>
+      <code><![CDATA[$this->sessionDirectoryPath.DIRECTORY_SEPARATOR.$f]]></code>
+    </TaintedFile>
   </file>
   <file src="src/Settings/Database/DriverDatabaseAbstract.php">
     <PropertyTypeCoercion>
@@ -5993,6 +6065,9 @@
     <PossiblyInvalidArgument>
       <code><![CDATA[$this->extra]]></code>
     </PossiblyInvalidArgument>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$this->extra]]></code>
+    </PossiblyInvalidCast>
   </file>
   <file src="src/Settings/TLSchema.php">
     <MixedArgument>
@@ -6842,6 +6917,10 @@
       <code><![CDATA[$multiple_args[$i]['entities'][]]]></code>
       <code><![CDATA[$multiple_args[$i]['entities'][]]]></code>
     </PossiblyInvalidArrayOffset>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$arguments['parse_mode']]]></code>
+      <code><![CDATA[$arguments['parse_mode']]]></code>
+    </PossiblyInvalidCast>
     <PossiblyInvalidIterator>
       <code><![CDATA[$args['entities']]]></code>
     </PossiblyInvalidIterator>
@@ -7000,6 +7079,9 @@
     <PossiblyInvalidArgument>
       <code><![CDATA[$params['ID']]]></code>
     </PossiblyInvalidArgument>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$params['ID']]]></code>
+    </PossiblyInvalidCast>
     <PossiblyNullArrayAccess>
       <code><![CDATA[$this->authorization['user']]]></code>
       <code><![CDATA[$this->authorization['user']['id']]]></code>
@@ -7435,6 +7517,9 @@
       <code><![CDATA[$tdDescriptions]]></code>
       <code><![CDATA[$typeMismatch]]></code>
     </PropertyNotSetInConstructor>
+    <TaintedFile>
+      <code><![CDATA[Tools::absolute($file)]]></code>
+    </TaintedFile>
   </file>
   <file src="src/TL/TLConstructors.php">
     <MissingReturnType>
@@ -7710,6 +7795,9 @@
       <code><![CDATA[$value]]></code>
       <code><![CDATA[$value]]></code>
     </PossiblyInvalidArgument>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$value]]></code>
+    </PossiblyInvalidCast>
     <PossiblyNullFunctionCall>
       <code><![CDATA[Closure::bind(
             fn &() => $this->{$var},
@@ -8068,7 +8156,11 @@
       <code><![CDATA[$bestEndpoint]]></code>
       <code><![CDATA[$messageHandler]]></code>
     </PropertyNotSetInConstructor>
+    <RedundantCondition>
+      <code><![CDATA[isset($this->bestEndpoint)]]></code>
+    </RedundantCondition>
     <TypeDoesNotContainType>
+      <code><![CDATA[!isset($this->bestEndpoint)]]></code>
       <code><![CDATA[isset($this->API->logger)]]></code>
     </TypeDoesNotContainType>
   </file>
@@ -8262,6 +8354,14 @@
       <code><![CDATA[$_POST['phone_number']]]></code>
       <code><![CDATA[$_POST['token']]]></code>
     </PossiblyInvalidArgument>
+    <PossiblyInvalidCast>
+      <code><![CDATA[$_POST['first_name']]]></code>
+      <code><![CDATA[$_POST['last_name'] ?? '']]></code>
+      <code><![CDATA[$_POST['password']]]></code>
+      <code><![CDATA[$_POST['phone_code']]]></code>
+      <code><![CDATA[$_POST['phone_number']]]></code>
+      <code><![CDATA[$_POST['token']]]></code>
+    </PossiblyInvalidCast>
     <PossiblyUndefinedVariable>
       <code><![CDATA[$result]]></code>
       <code><![CDATA[$result]]></code>

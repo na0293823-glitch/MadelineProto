@@ -1775,9 +1775,11 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             AsyncTools::rethrow($e);
             return;
         }
+        $eOrig = (string) $e;
+        $e = Tools::taintEscape((string) $e);
         echo $e;
-        $this->wrapper->logger((string) $e, Logger::FATAL_ERROR);
-        $this->report("Surfaced: $e");
+        $this->wrapper->logger($eOrig, Logger::FATAL_ERROR);
+        $this->report("Surfaced: $eOrig");
     }
 
     /**

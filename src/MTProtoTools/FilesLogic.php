@@ -31,7 +31,6 @@ use Amp\Http\Server\Request as ServerRequest;
 use Amp\Http\Server\Response;
 use Amp\Sync\LocalMutex;
 use Amp\Sync\Lock;
-use Amp\TimeoutCancellation;
 use danog\MadelineProto\API;
 use danog\MadelineProto\BotApiFileId;
 use danog\MadelineProto\EventHandler\Media;
@@ -238,36 +237,17 @@ trait FilesLogic
         );
 
         $body = null;
-        try {
-            if ($result->shouldServe()) {
-                [$start, $end] = $result->getServeRange();
-
-                $checkTimeout = new TimeoutCancellation(5.0);
-                $pipeTemp = new Pipe(1);
-                $this->downloadToStream($messageMedia, $pipeTemp->getSink(), null, $start, $start + 1, $checkTimeout);
-                $pipeTemp->getSink()->close();
-                if (strlen($pipeTemp->getSource()->read($checkTimeout)) !== 1) {
-                    throw new Exception('Cant download file from telegram server');
-                }
-
-                $pipe = new Pipe(1024 * 1024);
-                EventLoop::queue(function () use ($messageMedia, $pipe, $cb, $start, $end, $cancellation, $request): void {
-                    try {
-                        $this->downloadToStream($messageMedia, $pipe->getSink(), $cb, $start, $end, $cancellation);
-                    } catch (\Throwable $e) {
-                        $this->logger->logger($e, Logger::ERROR);
-                    }
-                    $pipe->getSink()->close();
-                });
-                $body = $pipe->getSource();
-            } elseif (!\in_array($result->getCode(), [HttpStatus::OK, HttpStatus::PARTIAL_CONTENT], true)) {
-                $body = $result->getCodeExplanation();
-            }
-
-            return new Response($result->getCode(), $result->getHeaders(), $body);
-        } catch (\Throwable $e) {
-            return new Response(HttpStatus::INTERNAL_SERVER_ERROR, [], $e->getMessage() . PHP_EOL);
+        if ($result->shouldServe()) {
+            $pipe = new Pipe(1024 * 1024);
+            [$start, $end] = $result->getServeRange();
+            $f = async($this->downloadToStream(...), $messageMedia, $pipe->getSink(), $cb, $start, $end, $cancellation);
+            $f->finally($pipe->getSink()->close(...));
+            $body = $pipe->getSource();
+        } elseif (!\in_array($result->getCode(), [HttpStatus::OK, HttpStatus::PARTIAL_CONTENT], true)) {
+            $body = $result->getCodeExplanation();
         }
+
+        return new Response($result->getCode(), $result->getHeaders(), $body);
     }
 
     /**

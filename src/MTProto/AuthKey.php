@@ -46,23 +46,6 @@ abstract class AuthKey implements JsonSerializable
      */
     protected ?string $serverSalt = null;
     /**
-     * Constructor function.
-     *
-     * @param array $old Old auth key array
-     */
-    public function __construct(array $old = [])
-    {
-        if (isset($old['auth_key'])) {
-            if (\strlen($old['auth_key']) !== 2048 / 8 && str_starts_with($old['auth_key'], 'pony')) {
-                $old['auth_key'] = base64_decode(substr($old['auth_key'], 4), true);
-            }
-            $this->setAuthKey($old['auth_key']);
-        }
-        if (isset($old['server_salt'])) {
-            $this->setServerSalt($old['server_salt']);
-        }
-    }
-    /**
      * Set auth key.
      *
      * @param string $authKey Authorization key

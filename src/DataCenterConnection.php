@@ -24,10 +24,12 @@ use Amp\DeferredFuture;
 use Amp\Future;
 use Amp\Sync\LocalMutex;
 use danog\MadelineProto\Loop\Generic\PeriodicLoopInternal;
+use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\PermAuthKey;
 use danog\MadelineProto\MTProto\TempAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
+use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\RPCError\DcIdInvalidError;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
 use danog\MadelineProto\Stream\ContextIterator;
@@ -119,6 +121,27 @@ final class DataCenterConnection implements JsonSerializable
      *
      */
     private bool $needsReconnect = false;
+
+    /** @param Publisher<ConnectionState> */
+    private Publisher $connectionState;
+
+    public function __construct()
+    {
+        $this->connectionState = new Publisher($this->tempAuthKey === null 
+            ? ConnectionState::UNENCRYPTED
+            : ($this->tempAuthKey->isInited() ? (
+                ConnectionState::ENCRYPTED_INITED : ConnectionState::ENCRYPTED_UNINITED
+            )
+        );
+    }
+    public function __wakeup()
+    {
+        $this->connectionState ??= new Publisher($this->tempAuthKey === null 
+            ? ConnectionState::UNENCRYPTED
+            : ($this->tempAuthKey->isInited() ? ConnectionState::ENCRYPTED_INITED : ConnectionState::ENCRYPTED_UNINITED)
+        );
+    }
+
     /**
      * Indicate if this socket needs to be reconnected.
      *
@@ -163,7 +186,7 @@ final class DataCenterConnection implements JsonSerializable
             if (!$this->hasTempAuthKey() || !$this->hasPermAuthKey() || !$this->isBound()) {
                 if (!$this->hasPermAuthKey() && !$cdn && !$media) {
                     $logger->logger(sprintf('Generating permanent authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
-                    $this->setPermAuthKey($connection->createAuthKey(false));
+                    $this->setPermAuthKey($connection->createAuthKey(false, $this->connectionState));
                 }
                 if ($media) {
                     $this->link(-$this->datacenter);
@@ -176,13 +199,13 @@ final class DataCenterConnection implements JsonSerializable
                     if (!$cdn) {
                         $logger->logger(sprintf('Generating temporary authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
                         $this->setTempAuthKey(null);
-                        $this->setTempAuthKey($connection->createAuthKey(true));
+                        $this->setTempAuthKey($connection->createAuthKey(true, $this->connectionState));
                         $this->bindTempAuthKey();
                         $connection->methodCallAsyncRead('help.getConfig', []);
                         $this->syncAuthorization();
                     } elseif (!$this->hasTempAuthKey()) {
                         $logger->logger(sprintf('Generating temporary authorization key for CDN DC %s...', $this->datacenter), Logger::NOTICE);
-                        $this->setTempAuthKey($connection->createAuthKey(true));
+                        $this->setTempAuthKey($connection->createAuthKey(true, $this->connectionState));
                     }
                 } else {
                     if (!$cdn) {
@@ -191,7 +214,7 @@ final class DataCenterConnection implements JsonSerializable
                         $this->syncAuthorization();
                     } elseif (!$this->hasTempAuthKey()) {
                         $logger->logger(sprintf('Generating temporary authorization key for CDN DC %s...', $this->datacenter), Logger::NOTICE);
-                        $this->setTempAuthKey($connection->createAuthKey(true));
+                        $this->setTempAuthKey($connection->createAuthKey(true, $this->connectionState));
                     }
                 }
                 foreach ($this->connections as $socket) {
@@ -329,7 +352,12 @@ final class DataCenterConnection implements JsonSerializable
     public function setTempAuthKey(?TempAuthKey $key): void
     {
         $this->tempAuthKey = $key;
+        $this->connectionState->publish($this->tempAuthKey === null 
+            ? ConnectionState::UNENCRYPTED
+            : ($this->tempAuthKey->isInited() ? ConnectionState::ENCRYPTED_INITED : ConnectionState::ENCRYPTED_UNINITED)
+        );
     }
+
     /**
      * Set permanent authorization key.
      *
@@ -347,7 +375,7 @@ final class DataCenterConnection implements JsonSerializable
     public function bind(bool $pfs = true): void
     {
         if (!$pfs && !$this->tempAuthKey) {
-            $this->tempAuthKey = new TempAuthKey();
+            $this->tempAuthKey = new TempAuthKey($this->connectionState);
         }
         $this->tempAuthKey->bind($this->permAuthKey, $pfs);
     }
@@ -466,7 +494,7 @@ final class DataCenterConnection implements JsonSerializable
         $count += $previousCount = \count($this->connections);
         for ($x = $previousCount; $x < $count; $x++) {
             $connection = new Connection();
-            $connection->setExtra($this, $this->datacenter, $x);
+            $connection->setExtra($this, $this->connectionState, $this->datacenter, $x);
             $this->connections[$x] = $connection;
             $this->availableConnections[$x] = 0;
         }

@@ -267,8 +267,8 @@ trait Login
         $auth_key->authorized(true);
         $auth_key->setServerSalt(random_bytes(8));
         $dataCenterConnection->setPermAuthKey($auth_key);
-        $dataCenterConnection->setTempAuthKey(new TempAuthKey());
-        $dataCenterConnection->bind($this->settings->getAuth()->getPfs());
+        $dataCenterConnection->setTempAuthKey(null);
+        $dataCenterConnection->initAuthorization();
 
         $this->datacenter->currentDatacenter = $mainDcID;
         $this->authorized_dc = $mainDcID;

@@ -20,6 +20,8 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
+use danog\MadelineProto\DataCenterConnection;
+use danog\MadelineProto\Reactive\Publisher;
 use JsonSerializable;
 
 /**
@@ -49,15 +51,8 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      *
      * @param array $old Old auth key array
      */
-    public function __construct(array $old = [])
+    public function __construct(private readonly Publisher $connectionState)
     {
-        parent::__construct($old);
-        if (isset($old['expires'])) {
-            $this->expires($old['expires']);
-        }
-        if (isset($old['connection_inited']) && $old['connection_inited']) {
-            $this->init($old['connection_inited']);
-        }
     }
     /**
      * Init or deinit connection for auth key.
@@ -67,6 +62,7 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     public function init(bool $init = true): void
     {
         $this->inited = $init;
+        $this->connectionState->publish($init ? ConnectionState::ENCRYPTED_INITED : ConnectionState::ENCRYPTED_UNINITED);
     }
     /**
      * Check if connection is inited for auth key.
@@ -144,6 +140,6 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      */
     public function __sleep(): array
     {
-        return ['authKey', 'id', 'serverSalt', 'bound', 'expires', 'inited'];
+        return ['authKey', 'id', 'serverSalt', 'bound', 'expires', 'inited', 'connectionState'];
     }
 }

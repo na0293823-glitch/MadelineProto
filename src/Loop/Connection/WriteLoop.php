@@ -22,14 +22,20 @@ namespace danog\MadelineProto\Loop\Connection;
 
 use Amp\ByteStream\StreamException;
 use Amp\DeferredFuture;
+use AssertionError;
+use Closure;
 use danog\Loop\Loop;
 use danog\MadelineProto\Connection;
 use danog\MadelineProto\Logger;
+use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\Container;
+use danog\MadelineProto\MTProto\LinkedList;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProtoTools\Crypt;
+use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\Tools;
 use Revolt\EventLoop;
+use Webmozart\Assert\Assert;
 
 use function strlen;
 
@@ -39,8 +45,10 @@ use function strlen;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
+ * 
+ * @implements Subscriber<ConnectionState>
  */
-final class WriteLoop extends Loop
+final class WriteLoop extends Loop implements Subscriber
 {
     private const MAX_COUNT = 1020;
     private const MAX_SIZE = 1 << 15;
@@ -55,6 +63,12 @@ final class WriteLoop extends Loop
     private readonly bool $isHttp;
 
     private int $resendTimeout;
+
+    private bool $encrypted;
+    private bool $uninited;
+    private LinkedList $queue;
+    private ?ConnectionState $pendingState = null;
+
     /**
      * Constructor function.
      */
@@ -62,6 +76,20 @@ final class WriteLoop extends Loop
     {
         $this->init2($connection);
         $this->resendTimeout = $this->API->getSettings()->getRpc()->getRpcResendTimeout();
+        $connection->getState()->subscribe($this);
+    }
+
+    #[\Override]
+    public function onAttach($initState): void
+    {
+        $this->pendingState = $initState;
+    }
+
+    #[\Override]
+    public function onStateChange($prevState, $state): void
+    {
+        $this->pendingState = $state;
+        $this->resume();
     }
     /**
      * Main loop.
@@ -69,31 +97,32 @@ final class WriteLoop extends Loop
     #[\Override]
     public function loop(): ?float
     {
-        $please_wait = false;
-        $first = true;
         while (true) {
             if ($this->connection->shouldReconnect()) {
                 $this->API->logger("Exiting $this because connection is old");
                 return self::STOP;
             }
-            if ((
-                $this->shared->hasTempAuthKey()
-                    ? ($this->connection->mainPendingOutgoing->isEmpty())
-                    : ($this->connection->unencryptedPendingOutgoing->isEmpty())
-            ) && !$first
-            ) {
+            if ($this->pendingState !== null) {
+                $this->encrypted = $this->pendingState !== ConnectionState::UNENCRYPTED;
+                $this->uninited = $this->pendingState !== ConnectionState::ENCRYPTED_UNINITED;
+                $this->queue = match ($this->pendingState) {
+                    ConnectionState::UNENCRYPTED => $this->connection->unencryptedPendingOutgoing,
+                    ConnectionState::ENCRYPTED_UNINITED => $this->connection->uninitedPendingOutgoing,
+                    ConnectionState::ENCRYPTED_INITED => $this->connection->mainPendingOutgoing,
+                };
+                $this->pendingState = null;
+            }
+            if ($this->queue->isEmpty()) {
                 $this->API->logger("No messages, pausing in $this...", Logger::ULTRA_VERBOSE);
                 return self::LONG_POLL_TIMEOUT;
             }
-            if ($please_wait) {
-                $this->API->logger("Have to wait for handshake, pausing in $this...", Logger::ULTRA_VERBOSE);
-                return 1.0;
-            }
             $this->connection->writing(true);
             try {
-                $please_wait = $this->shared->hasTempAuthKey()
-                    ? $this->encryptedWriteLoop($first)
-                    : $this->unencryptedWriteLoop();
+                if ($this->encrypted) {
+                    $this->encryptedWriteLoop();
+                } else {
+                    $this->unencryptedWriteLoop();
+                }
             } catch (StreamException $e) {
                 if ($this->connection->shouldReconnect()) {
                     $this->API->logger("Stopping $this because we have to reconnect");
@@ -112,7 +141,6 @@ final class WriteLoop extends Loop
             } finally {
                 $this->connection->writing(false);
             }
-            $first = false;
         }
     }
     public function unencryptedWriteLoop(): void
@@ -124,7 +152,7 @@ final class WriteLoop extends Loop
                 $this->connection->methodRecall($msg);
             }
         }
-        while ($message = $this->connection->unencryptedPendingOutgoing->peek()) {
+        while ($message = $this->queue->peek()) {
             $this->API->logger("Sending $message as unencrypted message to DC $this->datacenter", Logger::ULTRA_VERBOSE);
             $serialized = $message->getSerializedBody();
 
@@ -144,12 +172,9 @@ final class WriteLoop extends Loop
             $message->sent();
         }
     }
-    public function encryptedWriteLoop(): bool
+    public function encryptedWriteLoop(): void
     {
-        do {
-            if (!$this->shared->hasTempAuthKey()) {
-                return false;
-            }
+        while ($this->pendingState === null && !$this->queue->isEmpty()) {
             if ($check = $this->connection->check_queue) {
                 $this->connection->check_queue = [];
                 $deferred = new DeferredFuture();
@@ -232,20 +257,14 @@ final class WriteLoop extends Loop
 
             $total_length = 0;
             $count = 0;
-            $skipped = false;
 
             $has_seq = false;
 
             $has_state = false;
             $has_resend = false;
 
-            $message = $this->connection->mainPendingOutgoing;
-            while (true) {
-                $message = $message->prev;
-                if (!$message instanceof MTProtoOutgoingMessage) {
-                    break;
-                }
-
+            $message = $this->queue;
+            while (($message = $message->prev) instanceof MTProtoOutgoingMessage) {
                 $constructor = $message->constructor;
                 if ($this->shared->getGenericSettings()->getAuth()->getPfs() && !$this->shared->isBound() && !$this->connection->isCDN() && $message->isMethod && $constructor !== 'auth.bindTempAuthKey') {
                     $this->API->logger("Skipping $message due to unbound keys in DC $this->datacenter");
@@ -285,8 +304,8 @@ final class WriteLoop extends Loop
                     'seqno' => $message->getSeqNo() ?? $this->connection->generateOutSeqNo($message->contentRelated),
                 ];
                 if ($message->isMethod && $constructor !== 'auth.bindTempAuthKey') {
-                    if (!$this->shared->getTempAuthKey()->isInited()) {
-                        if ($constructor === 'help.getConfig' || $constructor === 'upload.getCdnFile') {
+                    if ($this->uninited) {
+                        Assert::true($constructor === 'help.getConfig' || $constructor === 'upload.getCdnFile');
                             $this->API->logger(sprintf('Writing client info (also executing %s)...', $constructor), Logger::NOTICE);
                             $MTmessage['body'] = ($this->API->getTL()->serializeMethod('invokeWithLayer', [
                                 'layer' => $this->API->settings->getSchema()->getLayer(),
@@ -306,11 +325,6 @@ final class WriteLoop extends Loop
                                     ]
                                 ),
                             ]));
-                        } else {
-                            $this->API->logger("Skipping $message due to uninited connection in DC $this->datacenter");
-                            $skipped = true;
-                            continue;
-                        }
                     } elseif ($this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
                         && !$this->shared->isAuthorized()
                         && $constructor !== 'auth.importAuthorization'
@@ -408,8 +422,7 @@ final class WriteLoop extends Loop
                 $message_id = $message['msg_id'];
                 $seq_no = $message['seqno'];
             } else {
-                $this->API->logger("NO MESSAGE SENT in $this!", Logger::WARNING);
-                return true;
+                throw new AssertionError("NO MESSAGE SENT in $this!");
             }
             unset($MTmessages);
             $plaintext = $this->shared->getTempAuthKey()->getServerSalt().$this->connection->session_id.Tools::packSignedLong($message_id).pack('VV', $seq_no, $message_data_length).$message_data;
@@ -436,9 +449,7 @@ final class WriteLoop extends Loop
             foreach ($messages as $message) {
                 $message->sent();
             }
-            //$this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-        } while (!$this->connection->mainPendingOutgoing->isEmpty() && !$skipped);
-        return $skipped;
+        }
     }
     /**
      * Get loop name.

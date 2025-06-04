@@ -91,6 +91,10 @@ trait Session
     /**
      * Pending outgoing messages.
      */
+    public LinkedList $uninitedPendingOutgoing;
+    /**
+     * Pending outgoing messages.
+     */
     public LinkedList $mainPendingOutgoing;
 
     /**

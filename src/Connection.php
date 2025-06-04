@@ -31,9 +31,11 @@ use danog\MadelineProto\Loop\Connection\CleanupLoop;
 use danog\MadelineProto\Loop\Connection\PingLoop;
 use danog\MadelineProto\Loop\Connection\ReadLoop;
 use danog\MadelineProto\Loop\Connection\WriteLoop;
+use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProtoSession\Session;
+use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Stream\BufferedStreamInterface;
 use danog\MadelineProto\Stream\ConnectionContext;
 use danog\MadelineProto\Stream\MTProtoBufferInterface;
@@ -137,6 +139,8 @@ final class Connection
      *
      */
     private bool $needsReconnect = false;
+    /** @var Publisher<ConnectionState> */
+    private Publisher $connectionState;
     /**
      * Indicate if this socket needs to be reconnected.
      *
@@ -253,6 +257,11 @@ final class Connection
     {
         return $this->API->isCDN($this->datacenter);
     }
+    /** @return Publisher<ConnectionState> */
+    public function getState(): Publisher {
+        return $this->connectionState;
+    }
+
     private ?LocalMutex $connectMutex = null;
     /**
      * Connects to a telegram DC using the specified protocol, proxy and connection parameters.
@@ -585,7 +594,7 @@ final class Connection
      * @param DataCenterConnection $extra Shared instance
      * @param int                  $id    Connection ID
      */
-    public function setExtra(DataCenterConnection $extra, int $datacenter, int $id): void
+    public function setExtra(DataCenterConnection $extra, Publisher $connectionState, int $datacenter, int $id): void
     {
         $this->shared = $extra;
         $this->id = $id;
@@ -593,6 +602,7 @@ final class Connection
         $this->API->logger = $this->API->logger;
         $this->datacenter = $datacenter;
         $this->datacenterId = $this->datacenter . '.' . $this->id;
+        $this->connectionState = $connectionState;
     }
     /**
      * Get main instance.

@@ -28,6 +28,7 @@ use danog\MadelineProto\MTProto;
 use danog\MadelineProto\MTProto\PermAuthKey;
 use danog\MadelineProto\MTProto\TempAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
+use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\RPCErrorException;
 use danog\MadelineProto\SecurityException;
 use danog\MadelineProto\Tools;
@@ -60,7 +61,7 @@ trait AuthKeyHandler
      *
      * @return ($temp is false ? PermAuthKey : TempAuthKey)|null
      */
-    public function createAuthKey(bool $temp): PermAuthKey|TempAuthKey|null
+    public function createAuthKey(bool $temp, Publisher $state): PermAuthKey|TempAuthKey|null
     {
         $expires_in = $temp ? MTProto::PFS_DURATION : -1;
         $cdn = $this->isCDN();
@@ -368,7 +369,7 @@ trait AuthKeyHandler
                                 throw new SecurityException('wrong new_nonce_hash1');
                             }
                             $this->API->logger('Diffie Hellman key exchange processed successfully!', Logger::VERBOSE);
-                            $key = $expires_in < 0 ? new PermAuthKey() : new TempAuthKey();
+                            $key = $expires_in < 0 ? new PermAuthKey() : new TempAuthKey($state);
                             if ($expires_in >= 0) {
                                 \assert($key instanceof TempAuthKey);
                                 $key->expires(time() + $expires_in);

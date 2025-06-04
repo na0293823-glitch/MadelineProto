@@ -27,7 +27,7 @@ final class TLSchema extends SettingsAbstract
     /**
      * TL layer version.
      */
-    protected int $layer = 203;
+    protected int $layer = 204;
     /**
      * API schema path.
      */
@@ -65,12 +65,20 @@ final class TLSchema extends SettingsAbstract
      */
     public function __wakeup(): void
     {
-        $new = new self;
-        $this->setAPISchema($new->getAPISchema());
-        $this->setMTProtoSchema($new->getMTProtoSchema());
-        $this->setSecretSchema($new->getSecretSchema());
-        $this->setLayer($new->getLayer());
-        $this->wasUpgraded = true;
+        $exists = false;
+        try {
+            $exists = file_exists($this->APISchema);
+        } catch (Throwable) {
+        }
+        // Scheme was upgraded or path has changed
+        if (!$exists) {
+            $new = new self;
+            $this->setAPISchema($new->getAPISchema());
+            $this->setMTProtoSchema($new->getMTProtoSchema());
+            $this->setSecretSchema($new->getSecretSchema());
+            $this->setLayer($new->getLayer());
+            $this->wasUpgraded = true;
+        }
     }
     /**
      * Returns whether the TL parser should re-parse the TL schemes.

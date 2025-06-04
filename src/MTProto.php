@@ -408,7 +408,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
      */
     #[OrmMappedArray(KeyType::STRING, ValueType::SCALAR, cacheTtl: 0, optimizeIfWastedMb: 1, tablePostfix: 'session')]
     public DbArray $sessionDb;
-    private bool $cleaned = false;
 
     /**
      * Returns an instance of a client by session name.
@@ -1008,11 +1007,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             $this->updateQueue = $q;
         }
 
-        if ($this->cleaned) {
-            return;
-        }
-        $this->cleaned = true;
-
         if (isset($this->channels_state)) {
             $this->updateState = new CombinedUpdatesState;
             foreach ($this->channels_state->get() as $channelId => $state) {
@@ -1135,9 +1129,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         $this->initPromise = $deferred->getFuture();
 
         try {
-            // Update settings from constructor
-            $this->updateSettings($settings);
-
             // Setup logger
             $this->setupLogger();
 
@@ -1167,6 +1158,8 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             }
             // Reset MTProto session (not related to user session)
             $this->resetMTProtoSession("wakeup");
+            // Update settings from constructor
+            $this->updateSettings($settings);
             // Update TL callbacks
             $callbacks = [$this, $this->peerDatabase];
             if ($this->settings->getDb()->getEnableFileReferenceDb()) {

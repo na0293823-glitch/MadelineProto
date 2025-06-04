@@ -280,6 +280,7 @@ trait Methods
         $this->logger->logger('Generating methods index...', Logger::NOTICE);
         $reflection = new ReflectionClass(API::class);
         /** @psalm-suppress UndefinedClass */
+
         $phpdoc = PhpDoc::fromNamespace(\danog\MadelineProto::class);
         $phpdoc->resolveAliases();
         foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {

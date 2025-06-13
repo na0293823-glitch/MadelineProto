@@ -425,20 +425,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         return (bool) ($this->state & self::STATE_REPLIED);
     }
     /**
-     * Check if can garbage collect this message.
-     */
-    #[\Override]
-    public function canGarbageCollect(): bool
-    {
-        if ($this->state & self::STATE_REPLIED) {
-            return true;
-        }
-        if (!$this->hasPromise()) {
-            return true;
-        }
-        return false;
-    }
-    /**
      * For logging.
      */
     public function __toString(): string

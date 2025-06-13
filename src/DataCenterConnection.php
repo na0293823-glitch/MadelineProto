@@ -140,6 +140,7 @@ final class DataCenterConnection implements JsonSerializable
             ? ConnectionState::UNENCRYPTED
             : $this->tempAuthKey->getState()
         );
+        $this->tempAuthKey?->setPublisher($this->connectionState);
     }
 
     /**

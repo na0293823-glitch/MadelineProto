@@ -26,7 +26,6 @@ use Amp\Future;
 use Amp\Sync\LocalKeyedMutex;
 use Amp\TimeoutCancellation;
 use danog\MadelineProto\DataCenterConnection;
-use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\MTProto\Container;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
@@ -216,6 +215,7 @@ trait CallHandler
                 type: '',
                 isMethod: false,
                 unencrypted: false,
+                authMethod: false,
                 userRelated: false,
                 resultDeferred: $promise,
                 cancellation: $cancellation,

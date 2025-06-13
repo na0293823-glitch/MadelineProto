@@ -203,6 +203,7 @@ trait Session
         );
         $this->mainPendingOutgoing ??= new LinkedList;
         $this->unencryptedPendingOutgoing ??= new LinkedList;
+        $this->uninitedPendingOutgoing ??= new LinkedList;
         if ($this->session_id === null) {
             $this->resetSession("creating initial session");
         }

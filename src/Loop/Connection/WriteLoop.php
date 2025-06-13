@@ -23,7 +23,6 @@ namespace danog\MadelineProto\Loop\Connection;
 use Amp\ByteStream\StreamException;
 use Amp\DeferredFuture;
 use AssertionError;
-use Closure;
 use danog\Loop\Loop;
 use danog\MadelineProto\Connection;
 use danog\MadelineProto\Logger;
@@ -35,9 +34,6 @@ use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\Tools;
 use Revolt\EventLoop;
-use Webmozart\Assert\Assert;
-
-use function strlen;
 
 /**
  * Socket write loop.
@@ -45,7 +41,7 @@ use function strlen;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
- * 
+ *
  * @implements Subscriber<ConnectionState>
  */
 final class WriteLoop extends Loop implements Subscriber

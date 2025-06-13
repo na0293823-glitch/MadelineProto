@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
-use danog\MadelineProto\DataCenterConnection;
 use danog\MadelineProto\Reactive\Publisher;
 use JsonSerializable;
 
@@ -49,15 +48,19 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     /**
      * Constructor function.
      *
-     * @param array $old Old auth key array
      */
     public function __construct(private readonly Publisher $connectionState)
     {
     }
+    public function setPublisher(Publisher $publisher): void
+    {
+        $this->connectionState ??= $publisher;
+    }
     /**
-     * Only used on initialization
+     * Only used on initialization.
      */
-    public function getState(): ConnectionState {
+    public function getState(): ConnectionState
+    {
         if ($this->authKey === null) {
             return ConnectionState::UNENCRYPTED;
         }

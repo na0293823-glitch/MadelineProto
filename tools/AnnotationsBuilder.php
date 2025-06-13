@@ -351,10 +351,6 @@ final class Blacklist {
         foreach ($params as $name => $param) {
             if ($name === 'reply_to') {
                 $param['pow'] ??= 'yes';
-                $contents .= "     * @param int \$reply_to_msg_id ID Of message to reply to\n";
-                $signature []= "int \$reply_to_msg_id = 0";
-                $contents .= "     * @param int \$top_msg_id This field must contain the topic ID only when replying to messages in forum topics different from the \"General\" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1). \n";
-                $signature []= "int \$top_msg_id = 0";
             }
 
             $description = $this->prepareTLTypeDescription($param['type'], $param['description']);

@@ -172,7 +172,7 @@ abstract class AbstractMessage extends Update implements SimpleFilters
             return $this->replyCache;
         }
         $messages = $this->getClient()->methodCallAsyncRead(
-            DialogId::isSupergroupOrChannel($this->chatId) ? 'channels.getMessages' : 'messages.getMessages',
+            DialogId::isSupergroupOrChannelOrMiniforum($this->chatId) ? 'channels.getMessages' : 'messages.getMessages',
             [
                 'channel' => $this->chatId,
                 'id' => [['_' => 'inputMessageReplyTo', 'id' => $this->id]],
@@ -195,7 +195,7 @@ abstract class AbstractMessage extends Update implements SimpleFilters
     public function delete(bool $revoke = true): void
     {
         $this->getClient()->methodCallAsyncRead(
-            DialogId::isSupergroupOrChannel($this->chatId) ? 'channels.deleteMessages' : 'messages.deleteMessages',
+            DialogId::isSupergroupOrChannelOrMiniforum($this->chatId) ? 'channels.deleteMessages' : 'messages.deleteMessages',
             [
                 'channel' => $this->chatId,
                 'id' => [$this->id],
@@ -881,7 +881,7 @@ abstract class AbstractMessage extends Update implements SimpleFilters
      */
     public function read(bool $readAll = false): bool
     {
-        if (DialogId::isSupergroupOrChannel($this->chatId)) {
+        if (DialogId::isSupergroupOrChannelOrMiniforum($this->chatId)) {
             return $this->getClient()->methodCallAsyncRead(
                 'channels.readHistory',
                 [

@@ -59,7 +59,7 @@ class GroupMessage extends Message
      */
     public function hideMembers(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleParticipantsHidden',
             [
@@ -77,7 +77,7 @@ class GroupMessage extends Message
      */
     public function unhideMembers(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleParticipantsHidden',
             [
@@ -94,7 +94,7 @@ class GroupMessage extends Message
      */
     public function hideHistory(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.togglePreHistoryHidden',
             [
@@ -111,7 +111,7 @@ class GroupMessage extends Message
      */
     public function unhideHistory(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.togglePreHistoryHidden',
             [
@@ -235,7 +235,7 @@ class GroupMessage extends Message
      */
     public function deleteUserMessages(string|int|null $member = null): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $member ??= $this->senderId;
         $this->getClient()->methodCallAsyncRead(
             'channels.deleteParticipantHistory',
@@ -274,7 +274,7 @@ class GroupMessage extends Message
      */
     public function enableAntiSpam(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleAntiSpam',
             [
@@ -291,7 +291,7 @@ class GroupMessage extends Message
      */
     public function disableAntiSpam(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleAntiSpam',
             [
@@ -347,7 +347,7 @@ class GroupMessage extends Message
      */
     public function createTopic(string $title, IconColor|int $icon = IconColor::NONE): DialogTopicCreated
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         if (!$this->topicId) {
             $this->enableTopics();
         }
@@ -375,7 +375,7 @@ class GroupMessage extends Message
      */
     public function editTopic(string $title, int $icon = 0, ?int $topicId = null): DialogTopicEdited
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $topicId ??= $this->topicId;
         Assert::notNull($topicId, "No topic ID was provided!");
         $client = $this->getClient();
@@ -399,7 +399,7 @@ class GroupMessage extends Message
      */
     public function openTopic(?int $topicId = null): DialogTopicEdited
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $topicId ??= $this->topicId;
         Assert::notNull($topicId, "No topic ID was provided!");
         $client = $this->getClient();
@@ -422,7 +422,7 @@ class GroupMessage extends Message
      */
     public function closeTopic(?int $topicId = null): DialogTopicEdited
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $topicId ??= $this->topicId;
         Assert::notNull($topicId, "No topic ID was provided!");
         $client = $this->getClient();
@@ -445,7 +445,7 @@ class GroupMessage extends Message
      */
     public function deleteTopic(?int $topicId = null): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $topicId ??= $this->topicId;
         Assert::notNull($topicId, "No topic ID was provided!");
         $this->getClient()->methodCallAsyncRead(
@@ -465,7 +465,7 @@ class GroupMessage extends Message
      */
     public function enableSlowMode(int $seconds): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         Assert::false($seconds === 0);
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleSlowMode',
@@ -483,7 +483,7 @@ class GroupMessage extends Message
      */
     public function disableSlowMode(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleSlowMode',
             [
@@ -529,7 +529,7 @@ class GroupMessage extends Message
      */
     public function enableJoinToComment(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleJoinToSend',
             [
@@ -545,7 +545,7 @@ class GroupMessage extends Message
      */
     public function disableJoinToComment(): void
     {
-        Assert::true(DialogId::isSupergroupOrChannel($this->chatId));
+        Assert::true(DialogId::isSupergroupOrChannelOrMiniforum($this->chatId));
         $this->getClient()->methodCallAsyncRead(
             'channels.toggleJoinToSend',
             [

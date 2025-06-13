@@ -370,7 +370,7 @@ final class Connection
                 $arguments['message']['ttl'] = 0;
             }
             if (isset($arguments['message']['reply_to_msg_id'])) {
-                $arguments['message']['reply_to_random_id'] = $arguments['message']['reply_to_msg_id'];
+                throw new Exception("reply_to_msg_id is deprecated, please use reply_to or the new sendMessage/sendVideo/etc... method instead!");
             } elseif (isset($arguments['message']['reply_to']['reply_to_msg_id'])) {
                 $arguments['message']['reply_to_random_id'] = $arguments['message']['reply_to']['reply_to_msg_id'];
             }
@@ -520,15 +520,7 @@ final class Connection
             }
         }
         if (isset($arguments['reply_to_msg_id'])) {
-            if (isset($arguments['reply_to'])) {
-                throw new Exception("You can't provide a reply_to together with reply_to_msg_id and top_msg_id!");
-            }
-            $arguments['reply_to'] = [
-                '_' => 'inputReplyToMessage',
-                'reply_to_msg_id' => $arguments['reply_to_msg_id'],
-                'top_msg_id' => $arguments['top_msg_id'] ?? null,
-            ];
-            unset($arguments['reply_to_msg_id'], $arguments['top_msg_id']);
+            throw new Exception("reply_to_msg_id is deprecated, please use reply_to or the new sendMessage/sendVideo/etc... methods instead!");
         }
     }
     /**

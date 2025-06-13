@@ -97,7 +97,7 @@ trait ChatTrait
     public function delete(bool $revoke = true): void
     {
         $this->getClient()->methodCallAsyncRead(
-            DialogId::isSupergroupOrChannel($this->chatId) ? 'channels.deleteMessages' : 'messages.deleteMessages',
+            DialogId::isSupergroupOrChannelOrMiniforum($this->chatId) ? 'channels.deleteMessages' : 'messages.deleteMessages',
             [
                 'channel' => $this->chatId,
                 'id' => [$this->messageId],

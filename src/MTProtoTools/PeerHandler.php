@@ -27,7 +27,6 @@ use danog\MadelineProto\EventHandler\Message\Entities\InputMentionName;
 use danog\MadelineProto\EventHandler\Message\Entities\MentionName;
 use danog\MadelineProto\Exception;
 use danog\MadelineProto\Logger;
-use danog\MadelineProto\Magic;
 use danog\MadelineProto\PeerNotInDbException;
 use danog\MadelineProto\RPCError\ChannelPrivateError;
 use danog\MadelineProto\RPCError\ChatAdminRequiredError;
@@ -390,7 +389,7 @@ trait PeerHandler
             if (!$this->peerDatabase->isset($id)) {
                 try {
                     $this->logger->logger("Try fetching {$id} with access hash 0");
-                    if (DialogId::isSupergroupOrChannel($id)) {
+                    if (DialogId::isSupergroupOrChannelOrMiniforum($id)) {
                         $this->peerDatabase->addChatBlocking($id);
                     } elseif ($id < 0) {
                         $this->methodCallAsyncRead('messages.getChats', ['id' => [-$id]]);
@@ -494,7 +493,7 @@ trait PeerHandler
                 return ($constructor['self'] ?? false) ? ['_' => 'inputUserSelf'] : ['_' => 'inputUser', 'user_id' => $constructor['id'], 'access_hash' => $constructor['access_hash'], 'min' => $constructor['min'] ?? false];
             }
             if ($constructor['_'] === 'channel') {
-                return ['_' => 'inputChannel', 'channel_id' => (-$constructor['id']) + Magic::ZERO_CHANNEL_ID, 'access_hash' => $constructor['access_hash'], 'min' => $constructor['min'] ?? false];
+                return ['_' => 'inputChannel', 'channel_id' => DialogId::toMTProtoId($constructor['id']), 'access_hash' => $constructor['access_hash'], 'min' => $constructor['min'] ?? false];
             }
         }
         if ($type === \danog\MadelineProto\API::INFO_TYPE_PEER) {
@@ -502,7 +501,7 @@ trait PeerHandler
                 return ($constructor['self'] ?? false) ? ['_' => 'inputPeerSelf'] : ['_' => 'inputPeerUser', 'user_id' => $constructor['id'], 'access_hash' => $constructor['access_hash'], 'min' => $constructor['min'] ?? false];
             }
             if ($constructor['_'] === 'channel') {
-                return ['_' => 'inputPeerChannel', 'channel_id' => (-$constructor['id']) + Magic::ZERO_CHANNEL_ID, 'access_hash' => $constructor['access_hash'], 'min' => $constructor['min'] ?? false];
+                return ['_' => 'inputPeerChannel', 'channel_id' => DialogId::toMTProtoId($constructor['id']), 'access_hash' => $constructor['access_hash'], 'min' => $constructor['min'] ?? false];
             }
             if ($constructor['_'] === 'chat' || $constructor['_'] === 'chatForbidden') {
                 return ['_' => 'inputPeerChat', 'chat_id' => -$constructor['id']];
@@ -609,6 +608,9 @@ trait PeerHandler
             Assert::notNull($id);
             switch (DialogId::getType($id)) {
                 case DialogId::CHANNEL_OR_SUPERGROUP:
+                    $supergroups []= $id;
+                    break;
+                case DialogId::MINIFORUM:
                     $supergroups []= $id;
                     break;
                 case DialogId::CHAT:

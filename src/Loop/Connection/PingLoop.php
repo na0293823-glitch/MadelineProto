@@ -23,6 +23,8 @@ namespace danog\MadelineProto\Loop\Connection;
 use danog\Loop\Loop;
 use danog\MadelineProto\Connection;
 use danog\MadelineProto\Logger;
+use danog\MadelineProto\MTProto\ConnectionState;
+use danog\MadelineProto\Reactive\Subscriber;
 use Revolt\EventLoop;
 use Throwable;
 
@@ -33,7 +35,7 @@ use Throwable;
  *
  * @author Daniil Gentili <daniil@daniil.it>
  */
-final class PingLoop extends Loop
+final class PingLoop extends Loop implements Subscriber
 {
     use Common {
         __construct as constructCommon;
@@ -47,6 +49,17 @@ final class PingLoop extends Loop
         $this->constructCommon($connection);
         $this->timeout = $timeout = $this->shared->getSettings()->getPingInterval();
         $this->timeoutDisconnect = $timeout + 15;
+        $connection->getShared()->auth->connectionState->subscribe($this);
+    }
+    public function onAttach($initState): void
+    {
+        if ($initState === ConnectionState::ENCRYPTED) {
+            $this->resume(true);
+        }
+    }
+    public function onStateChange($prevState, $state): void
+    {
+        $this->onAttach($state);
     }
     /**
      * Main loop.

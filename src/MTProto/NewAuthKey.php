@@ -20,9 +20,9 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
+use danog\MadelineProto\API;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Reactive\Subscriber;
-use JsonSerializable;
 use Webmozart\Assert\Assert;
 
 /**
@@ -30,7 +30,7 @@ use Webmozart\Assert\Assert;
  *
  * @internal
  */
-final class NewAuthKey
+final class NewAuthKey implements Subscriber
 {
     private ?string $authKey = null;
     private ?string $id = null;
@@ -38,16 +38,36 @@ final class NewAuthKey
     private ?string $tempId = null;
     public ?string $serverSalt = null;
 
-    private ConnectionState $state = ConnectionState::UNENCRYPTED;
+    private ConnectionState $state;
     /** @var Publisher<ConnectionState> */
     public readonly Publisher $connectionState;
-    
+
+    private bool $isLoggedIn = false;
+
     public function __construct(
         public readonly bool $isMedia,
         public readonly bool $isCdn,
-    )
-    {
+        Publisher $loginState
+    ) {
+        $loginState->subscribe($this);
+        $this->state = $isCdn ? ConnectionState::UNENCRYPTED : ConnectionState::UNENCRYPTED_NO_PERMANENT;
         $this->connectionState->publish($this->state);
+    }
+
+    public function onAttach($initState): void
+    {
+        $this->isLoggedIn = $initState === API::LOGGED_IN;
+        if ($this->state === ConnectionState::ENCRYPTED_NOT_AUTHED
+            || $this->state === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
+        ) {
+            $this->state = $this->isLoggedIn ? ConnectionState::ENCRYPTED_NOT_AUTHED : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
+            $this->connectionState->publish($this->state);
+        }
+    }
+
+    public function onStateChange($prevState, $state): void
+    {
+        $this->onAttach($state);
     }
 
     public function getState(): ConnectionState
@@ -62,17 +82,22 @@ final class NewAuthKey
         } else {
             $this->id = substr(sha1($authKey, true), -8);
         }
+        $this->setTempAuthKey(null, null);
     }
-    public function setTempAuthKey(?string $authKey): void
+    public function setTempAuthKey(?string $authKey, ?string $serverSalt): void
     {
         $this->tempAuthKey = $authKey;
         if ($authKey === null) {
+            Assert::null($serverSalt, 'Server salt must be null if auth key is null');
             $this->tempId = null;
-            $this->state = ConnectionState::UNENCRYPTED;
+            $this->state = $this->isCdn || $this->id !== null ? ConnectionState::UNENCRYPTED : ConnectionState::UNENCRYPTED_NO_PERMANENT;
         } else {
+            Assert::notNull($serverSalt, 'Server salt must not be null if auth key is not null');
+            Assert::notNull($this->id, 'Auth key must not be null if temp auth key is not null');
             $this->tempId = substr(sha1($authKey, true), -8);
             $this->state = ConnectionState::ENCRYPTED_NOT_INITED;
         }
+        $this->serverSalt = $serverSalt;
         $this->connectionState->publish($this->state);
     }
     /**
@@ -104,17 +129,35 @@ final class NewAuthKey
         return $this->tempId;
     }
 
-    public function init(): void {
+    /**
+     * Get server salt.
+     */
+    public function getServerSalt(): ?string
+    {
+        return $this->serverSalt;
+    }
+    /**
+     * Get server salt.
+     */
+    public function setServerSalt(?string $salt): void
+    {
+        $this->serverSalt = $salt;
+    }
+
+    public function init(): void
+    {
         Assert::eq($this->state, ConnectionState::ENCRYPTED_NOT_INITED);
-        $this->state = ConnectionState::ENCRYPTED_NOT_BOUND;
+        $this->state = $this->isCdn ? ConnectionState::ENCRYPTED : ConnectionState::ENCRYPTED_NOT_BOUND;
         $this->connectionState->publish($this->state);
     }
-    public function bind(): void {
+    public function bind(): void
+    {
         Assert::eq($this->state, ConnectionState::ENCRYPTED_NOT_BOUND);
-        $this->state = ConnectionState::ENCRYPTED_NOT_AUTHED;
+        $this->state = $this->isLoggedIn ? ConnectionState::ENCRYPTED_NOT_AUTHED : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
         $this->connectionState->publish($this->state);
     }
-    public function authorize(): void {
+    public function authorize(): void
+    {
         Assert::eq($this->state, ConnectionState::ENCRYPTED_NOT_AUTHED);
         $this->state = ConnectionState::ENCRYPTED;
         $this->connectionState->publish($this->state);

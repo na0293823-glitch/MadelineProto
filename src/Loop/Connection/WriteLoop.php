@@ -98,9 +98,14 @@ final class WriteLoop extends Loop implements Subscriber
                 return self::STOP;
             }
             if ($this->pendingState !== null) {
-                $this->encrypted = $this->pendingState !== ConnectionState::UNENCRYPTED;
+                $this->encrypted = match ($this->pendingState) {
+                    ConnectionState::UNENCRYPTED => false,
+                    ConnectionState::UNENCRYPTED_NO_PERMANENT => false,
+                    default => true
+                };
                 $this->queue = match ($this->pendingState) {
                     ConnectionState::UNENCRYPTED => $this->connection->unencryptedPendingOutgoing,
+                    ConnectionState::UNENCRYPTED_NO_PERMANENT => $this->connection->unencryptedPendingOutgoing,
                     ConnectionState::ENCRYPTED => $this->connection->mainPendingOutgoing,
                     default => $this->connection->uninitedPendingOutgoing
                 };

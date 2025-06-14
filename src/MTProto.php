@@ -68,6 +68,7 @@ use danog\MadelineProto\MTProtoTools\PeerHandler;
 use danog\MadelineProto\MTProtoTools\ReferenceDatabase;
 use danog\MadelineProto\MTProtoTools\ResponseInfo;
 use danog\MadelineProto\MTProtoTools\UpdateHandler;
+use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Settings\Database\DriverDatabaseAbstract;
 use danog\MadelineProto\Settings\TLSchema;
 use danog\MadelineProto\TL\Conversion\BotAPI;
@@ -211,6 +212,12 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
      * @var API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT
      */
     public int $authorized = API::NOT_LOGGED_IN;
+    /**
+     * Whether we're authorized.
+     *
+     * @var Publisher<API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT>
+     */
+    public Publisher $loginState;
     /**
      * Main authorized DC ID.
      */
@@ -944,6 +951,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
                 throw new Exception("Memory profiling is not enabled, set the MEMPROF_PROFILE=1 environment variable or GET parameter to enable it.");
             }
         }
+        $this->loginState ??= new Publisher($this->authorized);
         $info = $this->getPromGauge("MadelineProto", "version", "Info about the MadelineProto instance");
         $info?->set(1, [
             'php_version' => PHP_VERSION,
@@ -1079,12 +1087,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     private function upgradeMadelineProto(): void
     {
         $this->logger->logger(Lang::$current_lang['serialization_ofd'], Logger::WARNING);
-        foreach ($this->datacenter->getDataCenterConnections() as $dc_id => $socket) {
-            if ($this->authorized === API::LOGGED_IN && \is_int($dc_id) && $socket->hasPermAuthKey() && $socket->hasTempAuthKey()) {
-                $socket->bind();
-                $socket->authorized(true);
-            }
-        }
         $this->settings->setSchema(new TLSchema);
 
         $this->resetMTProtoSession("upgrading madelineproto", true, true);
@@ -1171,6 +1173,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             // Connect to all DCs, start internal loops
             if ($this->fullGetSelf()) {
                 $this->authorized = API::LOGGED_IN;
+                $this->loginState->publish($this->authorized);
                 $this->setupLogger();
                 $this->startLoops();
                 $this->getCdnConfig();

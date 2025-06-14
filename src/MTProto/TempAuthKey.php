@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
-use danog\MadelineProto\Reactive\Publisher;
 use JsonSerializable;
 
 /**

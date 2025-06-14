@@ -34,6 +34,7 @@ use danog\MadelineProto\Settings\Connection as ConnectionSettings;
 use danog\MadelineProto\Stream\ContextIterator;
 use JsonSerializable;
 use Revolt\EventLoop;
+use Webmozart\Assert\Assert;
 
 use function count;
 
@@ -109,11 +110,25 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
 
     public function __construct()
     {
-        $this->auth = new NewAuthKey(DataCenter::isMedia($this->datacenter), $this->API->isCdn($this->datacenter));
+        $this->__wakeup();
     }
     public function __wakeup(): void
     {
-        $this->auth ??= new NewAuthKey(DataCenter::isMedia($this->datacenter), $this->API->isCdn($this->datacenter));
+        $this->auth ??= new NewAuthKey(
+            DataCenter::isMedia($this->datacenter),
+            $this->API->isCdn($this->datacenter),
+            $this->API->loginState,
+        );
+        $this->auth->connectionState->subscribe($this);
+    }
+
+    public function onAttach($initState): void
+    {
+        EventLoop::queue($this->initAuthorization(...));
+    }
+    public function onStateChange($prevState, $state): void
+    {
+        EventLoop::queue($this->initAuthorization(...));
     }
 
     /**
@@ -155,13 +170,13 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
             $connection = $this->getAuthConnection();
             $this->createSession();
 
-            if (!$this->auth->getAuthKey()) {
+            if ($this->auth->getState() === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
                 if ($this->auth->isMedia) {
                     $connection = $this->API->datacenter->getDataCenterConnection(-$this->datacenter);
                     $connection->initAuthorization();
                     $this->auth->setAuthKey($connection->auth->getAuthKey());
-                    $this->auth->serverSalt = $connection->auth->serverSalt;
-                } elseif (!$this->auth->isCdn) {
+                } else {
+                    Assert::false($this->auth->isCdn, 'CDN connections should not be initialized with a permanent auth key.');
                     $logger->logger(sprintf('Generating permanent authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
                     $connection->createAuthKey(false);
                 }
@@ -176,24 +191,16 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
                 $connection->initConnection();
             }
 
-            if (!$this->auth->isCdn) {
-                if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_BOUND) {
-                    $this->bindTempAuthKey();
-                }
-                if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED) {
-                    $this->syncAuthorization();
-                }
+            if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_BOUND) {
+                $this->bindTempAuthKey();
             }
 
-            foreach ($this->connections as $socket) {
-                $socket->flush();
+            if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED) {
+                $this->syncAuthorization();
             }
         } finally {
             $logger->logger("Done initing auth for DC {$this->datacenter}", Logger::NOTICE);
             EventLoop::queue($lock->release(...));
-        }
-        if ($this->auth->getTempAuthKey()) {
-            $connection->pinger?->resume();
         }
     }
 
@@ -272,38 +279,40 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
      */
     private function syncAuthorization(): void
     {
-        if ($this->API->authorized === \danog\MadelineProto\API::LOGGED_IN 
-            && $this->auth->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
+        if ($this->API->authorized !== \danog\MadelineProto\API::LOGGED_IN
+            || $this->auth->getState() !== ConnectionState::ENCRYPTED_NOT_AUTHED
         ) {
-            $socket = $this->getAuthConnection();
-            $logger = $this->API->logger;
-            foreach ($this->API->datacenter->getDataCenterConnections() as $authorized_dc_id => $authorized_socket) {
-                if ($this->API->authorized_dc !== null && $authorized_dc_id !== $this->API->authorized_dc) {
-                    continue;
+            return;
+        }
+        $socket = $this->getAuthConnection();
+        $logger = $this->API->logger;
+        foreach ($this->API->datacenter->getDataCenterConnections() as $authorized_dc_id => $authorized_socket) {
+            if ($this->API->authorized_dc !== null && $authorized_dc_id !== $this->API->authorized_dc) {
+                continue;
+            }
+            if ($authorized_socket->auth->getState() === ConnectionState::ENCRYPTED
+                && !$authorized_socket->auth->isCdn
+                && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
+                && $authorized_dc_id !== $this->datacenter
+            ) {
+                try {
+                    $logger->logger('Trying to copy authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter);
+                    $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true], $authorized_dc_id);
+                    $exported_authorization['authMethod'] = true;
+                    $socket->methodCallAsyncRead('auth.importAuthorization', $exported_authorization);
+                    $this->auth->authorize();
+                    return;
+                } catch (DcIdInvalidError $e) {
+                    $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
+                    break;
+                } catch (RPCErrorException|Exception $e) {
+                    $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
                 }
-                if ($authorized_socket->auth->getState() === ConnectionState::ENCRYPTED
-                    && !$authorized_socket->auth->isCdn
-                    && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
-                    && $authorized_dc_id !== $this->datacenter
-                ) {
-                    try {
-                        $logger->logger('Trying to copy authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter);
-                        $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true], $authorized_dc_id);
-                        $exported_authorization['authMethod'] = true;
-                        $socket->methodCallAsyncRead('auth.importAuthorization', $exported_authorization);
-                        $this->auth->authorize();
-                        return;
-                    } catch (DcIdInvalidError $e) {
-                        $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
-                        break;
-                    } catch (RPCErrorException|Exception $e) {
-                        $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
-                    }
-                    // Turns out this DC isn't authorized after all
-                }
+                // Turns out this DC isn't authorized after all
             }
         }
     }
+
     /**
      * Reset MTProto sessions.
      */

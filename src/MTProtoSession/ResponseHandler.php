@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProtoSession;
 
-use Amp\DeferredFuture;
 use Amp\SignalException;
 use danog\BetterPrometheus\BetterHistogram;
 use danog\Loop\Loop;
@@ -43,8 +42,6 @@ use SplQueue;
 use Throwable;
 
 use const PHP_EOL;
-
-use function Amp\async;
 
 /**
  * Manages responses.
@@ -136,7 +133,7 @@ trait ResponseHandler
     }
     private function handleNewSession(MTProtoIncomingMessage $message): void
     {
-        $this->shared->getTempAuthKey()->setServerSalt($message->read()['server_salt']);
+        $this->shared->auth->setServerSalt($message->read()['server_salt']);
         if ($this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
             && isset($this->API->updaters[UpdateLoop::GENERIC])
         ) {
@@ -215,7 +212,7 @@ trait ResponseHandler
             $this->API->logger('Received bad_msg_notification: ' . MTProto::BAD_MSG_ERROR_CODES[$response['error_code']], Logger::WARNING);
             switch ($response['error_code']) {
                 case 48:
-                    $this->shared->getTempAuthKey()->setServerSalt($response['new_server_salt']);
+                    $this->shared->auth->setServerSalt($response['new_server_salt']);
                     $this->methodRecall($request);
                     return;
                 case 20:
@@ -227,9 +224,7 @@ trait ResponseHandler
                     $this->API->logger('Set time delta to ' . $this->time_delta, Logger::WARNING);
                     $this->API->resetMTProtoSession("time delta update");
                     $this->shared->auth->setTempAuthKey(null);
-                    $d = new DeferredFuture;
-                    async($this->shared->initAuthorization(...))->finally($d->complete(...));
-                    $this->methodRecall($request, $this->datacenter, $d->getFuture());
+                    $this->methodRecall($request, $this->datacenter);
                     return;
             }
             $request->reply(static fn () => RPCErrorException::make('Received bad_msg_notification: ' . MTProto::BAD_MSG_ERROR_CODES[$response['error_code']], $response['error_code'], $request->constructor));
@@ -377,16 +372,12 @@ trait ResponseHandler
                             $this->API->logout();
                             return static fn () => new SignalException(sprintf(Lang::$current_lang['account_banned'], $phone));
                         }
-                        $deferred = new DeferredFuture;
-                        async($this->shared->initAuthorization(...))->finally($deferred->complete(...));
-                        $this->methodRecall($request, $this->datacenter, $deferred->getFuture());
+                        $this->methodRecall($request, $this->datacenter);
                         return null;
                     case 'AUTH_KEY_PERM_EMPTY':
                         $this->API->logger('Temporary auth key not bound, resetting temporary auth key...', Logger::ERROR);
                         $this->shared->auth->setTempAuthKey(null);
-                        $deferred = new DeferredFuture;
-                        async($this->shared->initAuthorization(...))->finally($deferred->complete(...));
-                        $this->methodRecall($request, $this->datacenter, $deferred->getFuture());
+                        $this->methodRecall($request, $this->datacenter);
                         return null;
                 }
                 return static fn () => RPCErrorException::make($response['error_message'], $response['error_code'], $request->constructor);

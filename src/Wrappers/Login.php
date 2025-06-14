@@ -125,6 +125,7 @@ trait Login
                     $this->authorization['hint'] = '';
                 }
                 $this->authorized = \danog\MadelineProto\API::WAITING_PASSWORD;
+                $this->loginState->publish($this->authorized);
                 $this->qrLoginDeferred?->cancel();
                 $this->qrLoginDeferred = null;
                 return null;
@@ -152,9 +153,11 @@ trait Login
     {
         if ($this->authorized === API::LOGGED_IN) {
             $this->authorized = API::LOGGED_OUT;
+            $this->loginState->publish($this->authorized);
             $this->methodCallAsyncRead('auth.logOut', []);
         }
         $this->authorized = API::LOGGED_OUT;
+        $this->loginState->publish($this->authorized);
         if ($this->hasEventHandler()) {
             $this->stop();
         } else {
@@ -198,6 +201,7 @@ trait Login
         $this->authorization['phone_number'] = $number;
         //$this->authorization['_'] .= 'MP';
         $this->authorized = \danog\MadelineProto\API::WAITING_CODE;
+        $this->loginState->publish($this->authorized);
         $this->logger->logger(Lang::$current_lang['login_code_sent'], Logger::NOTICE);
         return $this->authorization;
     }
@@ -212,6 +216,7 @@ trait Login
             throw new Exception(Lang::$current_lang['login_code_uncalled']);
         }
         $this->authorized = API::NOT_LOGGED_IN;
+        $this->loginState->publish($this->authorized);
         $this->logger->logger(Lang::$current_lang['login_user'], Logger::NOTICE);
         try {
             $authorization = $this->methodCallAsyncRead('auth.signIn', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $code]);
@@ -222,11 +227,15 @@ trait Login
                 $this->authorization['hint'] = '';
             }
             $this->authorized = \danog\MadelineProto\API::WAITING_PASSWORD;
+            $this->loginState->publish($this->authorized);
+
             return $this->authorization;
         } catch (RPCErrorException $e) {
             if ($e->rpc === 'PHONE_NUMBER_UNOCCUPIED') {
                 $this->logger->logger(Lang::$current_lang['login_need_signup'], Logger::NOTICE);
                 $this->authorized = \danog\MadelineProto\API::WAITING_SIGNUP;
+                $this->loginState->publish($this->authorized);
+
                 $this->authorization['phone_code'] = $code;
                 return ['_' => 'account.needSignup'];
             }
@@ -235,6 +244,7 @@ trait Login
         if ($authorization['_'] === 'auth.authorizationSignUpRequired') {
             $this->logger->logger(Lang::$current_lang['login_need_signup'], Logger::NOTICE);
             $this->authorized = \danog\MadelineProto\API::WAITING_SIGNUP;
+            $this->loginState->publish($this->authorized);
             $this->authorization['phone_code'] = $code;
             $authorization['_'] = 'account.needSignup';
             return $authorization;
@@ -262,6 +272,7 @@ trait Login
         $dataCenterConnection = $this->datacenter->getDataCenterConnection($mainDcID);
 
         $this->logger->logger("Setting auth key in DC $mainDcID", Logger::NOTICE);
+        $dataCenterConnection->auth->setAuthKey($auth_key);
         $auth_key = new PermAuthKey($auth_key);
         $auth_key->authorized(true);
         $auth_key->setServerSalt(random_bytes(8));
@@ -272,6 +283,8 @@ trait Login
         $this->datacenter->currentDatacenter = $mainDcID;
         $this->authorized_dc = $mainDcID;
         $this->authorized = \danog\MadelineProto\API::LOGGED_IN;
+        $this->loginState->publish($this->authorized);
+
         $this->getPhoneConfig();
         $res = ($this->fullGetSelf());
         $callbacks = [$this, $this->referenceDatabase, $this->peerDatabase];
@@ -312,6 +325,7 @@ trait Login
             throw new Exception(Lang::$current_lang['signup_uncalled']);
         }
         $this->authorized = API::NOT_LOGGED_IN;
+        $this->loginState->publish($this->authorized);
         $this->logger->logger(Lang::$current_lang['signing_up'], Logger::NOTICE);
         return $this->processAuthorization($this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name]));
     }
@@ -341,6 +355,7 @@ trait Login
         $this->authorized_dc ??= $this->datacenter->currentDatacenter;
         $this->authorization = $authorization;
         $this->authorized = \danog\MadelineProto\API::LOGGED_IN;
+        $this->loginState->publish($this->authorized);
         $this->datacenter->getDataCenterConnection($this->authorized_dc)->authorized(true);
         $this->qrLoginDeferred?->cancel();
         $this->qrLoginDeferred = null;

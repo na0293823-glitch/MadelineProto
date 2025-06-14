@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\Reactive;
 
+use SplObjectStorage;
 use WeakMap;
 
 /**
@@ -27,7 +28,7 @@ use WeakMap;
  */
 final class Publisher
 {
-    /** @var WeakMap<Subscriber, true> */
+    /** @var WeakMap<Subscriber, bool> */
     private WeakMap $subscribers;
     /**
      * @param T $state
@@ -38,17 +39,34 @@ final class Publisher
         $this->subscribers = new WeakMap;
     }
 
-    public function __sleep()
+    public function __serialize(): array
     {
-        return ['state'];
+        $subscribers = new SplObjectStorage;
+        foreach ($this->subscribers as $subscriber => $v) {
+            $subscribers[$subscriber] = $v;
+        }
+        return ['state' => $this->state, 'subscribers' => $subscribers];
     }
 
-    public function __wakeup()
+    public function __unserialize(array $data): void
     {
+        $this->state = $data['state'];
         $this->subscribers = new WeakMap;
+        foreach ($data['subscribers'] as $subscriber => $v) {
+            $this->subscribers[$subscriber] = $v;
+            $subscriber->onAttach($this->state);
+        }
     }
 
     public function subscribe(Subscriber $subscriber): void
+    {
+        if (!isset($this->subscribers[$subscriber])) {
+            $this->subscribers[$subscriber] = false;
+            $subscriber->onAttach($this->state);
+        }
+    }
+
+    public function subscribeActor(Subscriber $subscriber): void
     {
         if (!isset($this->subscribers[$subscriber])) {
             $this->subscribers[$subscriber] = true;
@@ -60,7 +78,7 @@ final class Publisher
     {
         if ($state !== $this->state) {
             $prev = $this->state;
-            foreach ($this->subscribers as $subscriber => $_) {
+            foreach ($this->subscribers as $subscriber => $actor) {
                 $subscriber->onStateChange($prev, $state);
             }
             $this->state = $state;

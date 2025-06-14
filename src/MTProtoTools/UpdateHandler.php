@@ -1157,6 +1157,7 @@ trait UpdateHandler
                     $this->authorization['hint'] = '';
                 }
                 $this->authorized = API::WAITING_PASSWORD;
+                $this->loginState->publish($this->authorized);
                 $this->qrLoginDeferred?->cancel();
                 $this->qrLoginDeferred = null;
                 return;

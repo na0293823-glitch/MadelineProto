@@ -25,10 +25,7 @@ use danog\MadelineProto\Exception;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\Magic;
 use danog\MadelineProto\MTProto;
-use danog\MadelineProto\MTProto\PermAuthKey;
-use danog\MadelineProto\MTProto\TempAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
-use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\RPCErrorException;
 use danog\MadelineProto\SecurityException;
 use danog\MadelineProto\Tools;
@@ -368,8 +365,10 @@ trait AuthKeyHandler
                             }
                             $this->API->logger('Diffie Hellman key exchange processed successfully!', Logger::VERBOSE);
                             if ($temp) {
-                                $this->shared->auth->setTempAuthKey($auth_key_str);
-                                $this->shared->auth->serverSalt = substr($new_nonce, 0, 8) ^ substr($server_nonce, 0, 8);
+                                $this->shared->auth->setTempAuthKey(
+                                    $auth_key_str,
+                                    substr($new_nonce, 0, 8) ^ substr($server_nonce, 0, 8)
+                                );
                             } else {
                                 $this->shared->auth->setAuthKey($auth_key_str);
                             }

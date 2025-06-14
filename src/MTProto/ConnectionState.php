@@ -21,9 +21,11 @@ declare(strict_types=1);
 namespace danog\MadelineProto\MTProto;
 
 /** @internal */
-enum ConnectionState
+enum ConnectionState : int
 {
-    case UNENCRYPTED;
-    case ENCRYPTED_NOT_READY;
-    case ENCRYPTED;
+    case UNENCRYPTED = 0;
+    case ENCRYPTED_NOT_INITED = 1;
+    case ENCRYPTED_NOT_BOUND = 2;
+    case ENCRYPTED_NOT_AUTHED = 3;
+    case ENCRYPTED = 4;
 }

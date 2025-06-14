@@ -90,7 +90,7 @@ final class ReadLoop extends Loop
                 if ($error === -404) {
                     if ($this->shared->hasTempAuthKey()) {
                         $this->API->logger("WARNING: Resetting auth key in DC {$this->datacenter}...", Logger::WARNING);
-                        $this->shared->setTempAuthKey(null);
+                        $this->shared->auth->setTempAuthKey(null);
                         $this->shared->resetSession("-404");
                         foreach ($this->connection->new_outgoing as $message) {
                             $message->resetSent();

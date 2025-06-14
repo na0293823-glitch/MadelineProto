@@ -46,31 +46,6 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      */
     protected bool $inited = false;
     /**
-     * Constructor function.
-     *
-     */
-    public function __construct(private readonly Publisher $connectionState)
-    {
-    }
-    public function setPublisher(Publisher $publisher): void
-    {
-        $this->connectionState ??= $publisher;
-    }
-    /**
-     * Only used on initialization.
-     */
-    public function getState(): ConnectionState
-    {
-        if ($this->authKey === null) {
-            return ConnectionState::UNENCRYPTED;
-        }
-        if ($this->inited && $this->isAuthorized()) {
-            return ConnectionState::ENCRYPTED;
-        }
-        return ConnectionState::ENCRYPTED_NOT_READY;
-
-    }
-    /**
      * Init or deinit connection for auth key.
      *
      * @param boolean $init Init or deinit
@@ -122,22 +97,6 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     {
         $this->connectionState->publish($this->getState());
         $this->bound->authorized($authorized);
-    }
-    /**
-     * Set expiration date of temporary auth key.
-     *
-     * @param integer $expires Expiration date
-     */
-    public function expires(int $expires): void
-    {
-        $this->expires = $expires;
-    }
-    /**
-     * Check if auth key has expired.
-     */
-    public function expired(): bool
-    {
-        return time() > $this->expires;
     }
     /**
      * JSON serialization function.

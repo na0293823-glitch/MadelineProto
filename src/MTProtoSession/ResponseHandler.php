@@ -226,7 +226,7 @@ trait ResponseHandler
                     $this->time_delta = ($message->getMsgId() >> 32) - time();
                     $this->API->logger('Set time delta to ' . $this->time_delta, Logger::WARNING);
                     $this->API->resetMTProtoSession("time delta update");
-                    $this->shared->setTempAuthKey(null);
+                    $this->shared->auth->setTempAuthKey(null);
                     $d = new DeferredFuture;
                     async($this->shared->initAuthorization(...))->finally($d->complete(...));
                     $this->methodRecall($request, $this->datacenter, $d->getFuture());
@@ -367,8 +367,8 @@ trait ResponseHandler
                         $this->session_id = null;
                         $this->session_in_seq_no = 0;
                         $this->session_out_seq_no = 0;
-                        $this->shared->setTempAuthKey(null);
-                        $this->shared->setPermAuthKey(null);
+                        $this->shared->auth->setTempAuthKey(null);
+                        $this->shared->auth->setPermAuthKey(null);
                         $this->API->logger("Auth key not registered in DC {$this->datacenter} with RPC error {$response['error_message']}, resetting temporary and permanent auth keys...", Logger::ERROR);
                         if ($this->API->authorized_dc == $this->datacenter && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN) {
                             $this->API->logger('Permanent auth key was main authorized key, logging out...', Logger::FATAL_ERROR);
@@ -383,7 +383,7 @@ trait ResponseHandler
                         return null;
                     case 'AUTH_KEY_PERM_EMPTY':
                         $this->API->logger('Temporary auth key not bound, resetting temporary auth key...', Logger::ERROR);
-                        $this->shared->setTempAuthKey(null);
+                        $this->shared->auth->setTempAuthKey(null);
                         $deferred = new DeferredFuture;
                         async($this->shared->initAuthorization(...))->finally($deferred->complete(...));
                         $this->methodRecall($request, $this->datacenter, $deferred->getFuture());

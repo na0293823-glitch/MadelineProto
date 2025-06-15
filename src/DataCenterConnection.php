@@ -27,14 +27,9 @@ use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\NewAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
-use danog\MadelineProto\Reactive\Actor;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
-use danog\MadelineProto\Reactive\SimpleSubscriberAdaptor;
-use danog\MadelineProto\Reactive\Subscriber;
-use danog\MadelineProto\RPCError\DcIdInvalidError;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
 use danog\MadelineProto\Stream\ContextIterator;
-use JsonSerializable;
 use Revolt\EventLoop;
 use Webmozart\Assert\Assert;
 
@@ -108,10 +103,13 @@ final class DataCenterConnection implements SimpleSubscriber
     }
     public function __wakeup(): void
     {
+        $media = DataCenter::isMedia($this->datacenter);
         $this->auth ??= new NewAuthKey(
-            DataCenter::isMedia($this->datacenter),
+            $media,
             $this->API->isCdn($this->datacenter),
+            $this->datacenter,
             $this->API->loginState,
+            $media ? $this->API->datacenter->getDataCenterConnection(-$this->datacenter)->auth : null
         );
         $this->auth->connectionState->subscribe($this, true);
     }
@@ -220,37 +218,19 @@ final class DataCenterConnection implements SimpleSubscriber
                 }
             }
             throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
-        } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
-            if ($this->API->authorized_dc === $this->datacenter) {
-                $this->auth->authorize();
-                return;
-            }
-
-            foreach ($this->API->datacenter->getDataCenterConnections() as $authorized_dc_id => $authorized_socket) {
-                if ($this->API->authorized_dc !== null && $authorized_dc_id !== $this->API->authorized_dc) {
-                    continue;
-                }
-                if ($authorized_socket->auth->connectionState->getState() === ConnectionState::ENCRYPTED
-                    && !$authorized_socket->auth->isCdn
-                    && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
-                    && $authorized_dc_id !== $this->datacenter
-                ) {
-                    try {
-                        $logger->logger('Trying to copy authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter);
-                        $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true], $authorized_dc_id);
-                        $exported_authorization['authMethod'] = true;
-                        $connection->methodCallAsyncRead('auth.importAuthorization', $exported_authorization);
-                        $this->auth->authorize();
-                        return;
-                    } catch (DcIdInvalidError $e) {
-                        $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
-                        break;
-                    } catch (RPCErrorException|Exception $e) {
-                        $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
-                    }
-                    // Turns out this DC isn't authorized after all
-                }
-            }
+        } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED
+            && null !== $authed = $this->API->loginState->getState()->authorizedDc
+        ) {
+            $logger->logger('Trying to copy authorization from DC '.$authed.' to DC '.$this->datacenter);
+            $authorized_socket =  $this->API->datacenter->getDataCenterConnection($authed);
+            $authorized_socket->waitGetConnection();
+            $e = $authorized_socket->getAuthConnection()->methodCallAsyncRead(
+                'auth.exportAuthorization',
+                ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true]
+            );
+            $e['authMethod'] = true;
+            $connection->methodCallAsyncRead('auth.importAuthorization', $e);
+            $this->auth->authorize();
         }
     }
 

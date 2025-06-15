@@ -48,6 +48,7 @@ final class NewAuthKey implements SimpleSubscriber
     public function __construct(
         public readonly bool $isMedia,
         public readonly bool $isCdn,
+        public readonly int $dcId,
         Publisher $loginState,
         private readonly ?self $mainKey = null
     ) {;
@@ -82,14 +83,22 @@ final class NewAuthKey implements SimpleSubscriber
             return;
         }
 
-        $this->isLoggedIn = $state === API::LOGGED_IN;
+        Assert::isInstanceOf($state, LoginState::class);
+        $this->isLoggedIn = $state->state === API::LOGGED_IN;
         if ($this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
             || $this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
         ) {
-            $state = $this->isLoggedIn ? (
-                ConnectionState::ENCRYPTED_NOT_AUTHED
-            ) : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
+            if ($this->isLoggedIn) {
+                $state = $this->dcId === $state->authorizedDc
+                    ? ConnectionState::ENCRYPTED
+                    : ConnectionState::ENCRYPTED_NOT_AUTHED
+                ;
+            } else {
+                $state = ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
+            }
             $this->connectionState->publish($state);
+        } elseif (!$this->isLoggedIn && $this->connectionState->getState() === ConnectionState::ENCRYPTED) {
+            $this->setTempAuthKey(null, null);
         }
     }
 

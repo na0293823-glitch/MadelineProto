@@ -85,7 +85,9 @@ final class NewAuthKey implements Subscriber
         if ($this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
             || $this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
         ) {
-            $state = $this->isLoggedIn ? ConnectionState::ENCRYPTED_NOT_AUTHED : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
+            $state = $this->isLoggedIn ? (
+                ConnectionState::ENCRYPTED_NOT_AUTHED
+            ) : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
             $this->connectionState->publish($state);
         }
     }

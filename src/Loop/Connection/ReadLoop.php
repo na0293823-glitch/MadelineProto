@@ -66,7 +66,7 @@ final class ReadLoop extends Loop
                 if ($e instanceof NothingInTheSocketException
                     && !$this->connection->unencrypted_new_outgoing
                     && !$this->connection->new_outgoing
-                    && $this->connection->isMedia()
+                    && $this->connection->shared->auth->isMedia
                     && !$this->connection->isWriting()
                     && $this->shared->hasTempAuthKey()
                 ) {

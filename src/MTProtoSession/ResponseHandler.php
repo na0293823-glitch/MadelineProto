@@ -110,7 +110,7 @@ trait ResponseHandler
             if ($message->unencrypted) {
                 throw new SecurityException("Can't accept unencrypted update!");
             }
-            if (!$this->isCdn()) {
+            if (!$this->shared->auth->isCdn) {
                 EventLoop::queue($this->API->handleUpdates(...), $message->read());
             }
             return;
@@ -237,7 +237,7 @@ trait ResponseHandler
         ) {
             $this->shared->getTempAuthKey()->init(true);
         }
-        if (isset($response['_']) && !$this->isCdn()) {
+        if (isset($response['_']) && !$this->shared->auth->isCdn) {
             $responseType = $this->API->getTL()->getConstructors()->findByPredicate($response['_'])['type'];
             if ($responseType === 'Updates') {
                 $body = $request->getBodyOrEmpty();

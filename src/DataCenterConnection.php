@@ -289,7 +289,7 @@ final class DataCenterConnection implements Subscriber
      */
     public function connect(int $id = -1): void
     {
-        $media = DataCenter::isMedia($this->datacenter) || $this->API->isCDN($this->datacenter);
+        $media = $this->auth->isMedia || $this->auth->isCdn;
         if ($media) {
             if (!$this->robinLoop) {
                 $this->robinLoop = new PeriodicLoopInternal(
@@ -477,7 +477,7 @@ final class DataCenterConnection implements Subscriber
                 $count += 50;
             }
         } elseif ($min < 100) {
-            $max = DataCenter::isMedia($this->datacenter) || $this->API->isCDN($this->datacenter) ? $this->API->getSettings()->getConnection()->getMaxMediaSocketCount() : 1;
+            $max = $this->auth->isMedia || $this->auth->isCdn ? $this->API->getSettings()->getConnection()->getMaxMediaSocketCount() : 1;
             if (\count($this->availableConnections) < $max) {
                 $this->connectMore(2);
             } else {

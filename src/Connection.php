@@ -241,20 +241,6 @@ final class Connection
     {
         return $this->chosenCtx->isHttp();
     }
-    /**
-     * Check if is a media connection.
-     */
-    public function isMedia(): bool
-    {
-        return DataCenter::isMedia($this->datacenter);
-    }
-    /**
-     * Check if is a CDN connection.
-     */
-    public function isCDN(): bool
-    {
-        return $this->API->isCDN($this->datacenter);
-    }
     /** @return Publisher<ConnectionState> */
     public function getState(): Publisher
     {
@@ -305,7 +291,7 @@ final class Connection
                         $this->flush(); // Flush acks
                     }
                 }, "Handler loop");
-                if (!isset($this->pinger) && !$ctx->isMedia() && !$ctx->isCDN() && !$this->isHttp()) {
+                if (!isset($this->pinger) && !$this->shared->auth->isMedia && !$this->shared->auth->isMedia && !$this->isHttp()) {
                     $this->pinger = new PingLoop($this);
                 }
                 foreach ($this->unencrypted_new_outgoing as $message) {

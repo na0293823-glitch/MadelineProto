@@ -59,7 +59,7 @@ trait AuthKeyHandler
     public function createAuthKey(bool $temp): void
     {
         $expires_in = $temp ? MTProto::PFS_DURATION : -1;
-        $cdn = $this->isCDN();
+        $cdn = $this->shared->auth->isCdn;
         $test = $this->API->settings->getConnection()->getTestMode();
 
         for ($retry_id_total = 1; $retry_id_total <= $this->API->settings->getAuth()->getMaxAuthTries(); $retry_id_total++) {

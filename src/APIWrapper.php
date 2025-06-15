@@ -109,10 +109,6 @@ final class APIWrapper
         $this->API->waitForInit();
         $API = $this->API;
 
-        if ($API->authorized === API::LOGGED_OUT) {
-            return false;
-        }
-
         $this->session->serialize(
             $API->serializeSession($this),
             $this->session->getSessionPath(),

@@ -144,7 +144,7 @@ trait CallHandler
             return $this->API->methodCallAsyncWrite($method, $args, $args['id']['dc_id']);
         }
         $file = \in_array($method, ['upload.saveFilePart', 'upload.saveBigFilePart', 'upload.getFile', 'upload.getCdnFile'], true);
-        if ($file && !$this->isMedia() && $this->API->datacenter->has(-$this->datacenter)) {
+        if ($file && !$this->shared->auth->isMedia && $this->API->datacenter->has(-$this->datacenter)) {
             $this->API->logger('Using media DC');
             return $this->API->methodCallAsyncWrite($method, $args, -$this->datacenter);
         }

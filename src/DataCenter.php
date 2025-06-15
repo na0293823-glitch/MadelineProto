@@ -327,7 +327,6 @@ final class DataCenter
                         }
                         $ctx = (new ConnectionContext())
                             ->setDc($dc_number)
-                            ->setCdn($this->API->isCdn($dc_number))
                             ->setSocketContext($context)
                             ->setUri($uri)
                             ->setIpv6($ipv6 === 'ipv6');

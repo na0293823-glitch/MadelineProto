@@ -229,26 +229,19 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         $shared = $this->connection->getShared();
         $settings = $shared->getSettings();
         $global = $shared->getGenericSettings();
-        $timeout = (float) $settings->getTimeout();
-        $unencrypted = !$shared->hasTempAuthKey();
-        $notBound = !$shared->isBound();
+        $timeout = $settings->getTimeout();
         $this->checkTimer = EventLoop::delay(
             $timeout,
             $this->check(...)
         );
 
-        if ($this->unencrypted === $unencrypted) {
-            if (!$unencrypted && $notBound && $this->constructor !== 'auth.bindTempAuthKey') {
-                return;
-            }
-            \assert($this->msgId !== null);
-            if ($unencrypted) {
-                $this->connection->unencrypted_check_queue[] = $this;
-            } else {
-                $this->connection->check_queue[] = $this;
-            }
-            $this->connection->flush();
+        \assert($this->msgId !== null);
+        if ($this->unencrypted) {
+            $this->connection->unencrypted_check_queue[$this] = true;
+        } else {
+            $this->connection->check_queue[$this] = true;
         }
+        $this->connection->flush();
     }
     /**
      * Set reply to message.

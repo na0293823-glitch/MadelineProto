@@ -33,6 +33,18 @@ final class PermAuthKey extends AuthKey
      */
     private bool $authorized = false;
     /**
+     * Constructor function.
+     *
+     * @param array $old Old auth key array
+     */
+    public function __construct(array $old = [])
+    {
+        parent::__construct($old);
+        if (isset($old['authorized'])) {
+            $this->authorized($old['authorized']);
+        }
+    }
+    /**
      * Check if we are logged in.
      */
     #[\Override]

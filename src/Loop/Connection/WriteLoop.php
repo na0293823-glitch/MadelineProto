@@ -34,6 +34,7 @@ use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\Tools;
 use Revolt\EventLoop;
+use WeakMap;
 
 /**
  * Socket write loop.
@@ -139,9 +140,9 @@ final class WriteLoop extends Loop implements Subscriber
     }
     public function unencryptedWriteLoop(): void
     {
-        if ($queue = $this->connection->unencrypted_check_queue) {
-            $this->connection->unencrypted_check_queue = [];
-            foreach ($queue as $msg) {
+        if (0 !== ($queue = $this->connection->unencrypted_check_queue)->getCount()) {
+            $this->connection->unencrypted_check_queue = new WeakMap;
+            foreach ($queue as $msg => $_) {
                 // TODO: wait for actual re-queueing
                 $this->connection->methodRecall($msg);
             }
@@ -169,8 +170,8 @@ final class WriteLoop extends Loop implements Subscriber
     public function encryptedWriteLoop(): void
     {
         while ($this->pendingState === null && !$this->queue->isEmpty()) {
-            if ($check = $this->connection->check_queue) {
-                $this->connection->check_queue = [];
+            if (0 !== ($check = $this->connection->check_queue)->count()) {
+                $this->connection->check_queue = new WeakMap;
                 $deferred = new DeferredFuture();
                 $deferred->getFuture()->catch(function (\Throwable $e): void {
                     $this->API->logger("Got exception in check loop for DC {$this->datacenter}");
@@ -179,7 +180,8 @@ final class WriteLoop extends Loop implements Subscriber
 
                 $list = '';
                 $msgIds = [];
-                foreach ($check as $msg) {
+                $arr = [];
+                foreach ($check as $msg => $_) {
                     if ($msg->hasReply()) {
                         continue;
                     }
@@ -190,16 +192,17 @@ final class WriteLoop extends Loop implements Subscriber
                     }
                     $msgIds[] = $id;
                     $list .= $msg->constructor.', ';
+                    $arr[] = $msg;
                 }
                 $this->API->logger("Still missing {$list} on DC {$this->datacenter}, sending state request", Logger::ERROR);
                 $this->connection->objectCall('msgs_state_req', ['msg_ids' => $msgIds, 'cancellation' => new \Amp\TimeoutCancellation(self::LONG_POLL_TIMEOUT)], $deferred);
-                $deferred->getFuture()->map(function (array|\Closure $result) use ($check): void {
+                $deferred->getFuture()->map(function (array|\Closure $result) use ($arr): void {
                     try {
                         if (\is_callable($result)) {
                             throw $result();
                         }
                         foreach (str_split($result['info']) as $key => $chr) {
-                            $message = $check[$key];
+                            $message = $arr[$key];
                             if ($message->hasReply()) {
                                 $this->API->logger("Already got response for and forgot about message $message");
                                 continue;

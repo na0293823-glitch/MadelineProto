@@ -45,6 +45,21 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      */
     protected bool $inited = false;
     /**
+     * Constructor function.
+     *
+     * @param array $old Old auth key array
+     */
+    public function __construct(array $old = [])
+    {
+        parent::__construct($old);
+        if (isset($old['expires'])) {
+            $this->expires($old['expires']);
+        }
+        if (isset($old['connection_inited']) && $old['connection_inited']) {
+            $this->init($old['connection_inited']);
+        }
+    }
+    /**
      * Init or deinit connection for auth key.
      *
      * @param boolean $init Init or deinit
@@ -52,7 +67,6 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     public function init(bool $init = true): void
     {
         $this->inited = $init;
-        $this->connectionState->publish($this->getState());
     }
     /**
      * Check if connection is inited for auth key.
@@ -65,11 +79,16 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      * Bind auth key.
      *
      * @param PermAuthKey|null $bound Permanent auth key
+     * @param bool             $pfs   Whether to bind using PFS
      */
-    public function bind(?PermAuthKey $bound): void
+    public function bind(?PermAuthKey $bound, bool $pfs = true): void
     {
         $this->bound = $bound;
-        $this->connectionState->publish($this->getState());
+        if (!$pfs) {
+            foreach (['authKey', 'id', 'serverSalt'] as $key) {
+                $this->{$key} =& $bound->{$key};
+            }
+        }
     }
     /**
      * Check if auth key is bound.
@@ -94,8 +113,23 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     #[\Override]
     public function authorized(bool $authorized): void
     {
-        $this->connectionState->publish($this->getState());
         $this->bound->authorized($authorized);
+    }
+    /**
+     * Set expiration date of temporary auth key.
+     *
+     * @param integer $expires Expiration date
+     */
+    public function expires(int $expires): void
+    {
+        $this->expires = $expires;
+    }
+    /**
+     * Check if auth key has expired.
+     */
+    public function expired(): bool
+    {
+        return time() > $this->expires;
     }
     /**
      * JSON serialization function.
@@ -110,6 +144,6 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      */
     public function __sleep(): array
     {
-        return ['authKey', 'id', 'serverSalt', 'bound', 'expires', 'inited', 'connectionState'];
+        return ['authKey', 'id', 'serverSalt', 'bound', 'expires', 'inited'];
     }
 }

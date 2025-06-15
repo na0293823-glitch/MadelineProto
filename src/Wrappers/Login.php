@@ -283,21 +283,6 @@ trait Login
         return $res;
     }
     /**
-     * Export authorization.
-     *
-     * @return array{0: (int|string), 1: string}
-     */
-    public function exportAuthorization(): array
-    {
-        $dc = $this->loginState->getState()->authorizedDc;
-
-        if ($dc === null) {
-            throw new Exception(Lang::$current_lang['not_loggedIn']);
-        }
-
-        return [$dc, $this->datacenter->getDataCenterConnection($dc)->auth->getAuthKey()];
-    }
-    /**
      * Complete signup to Telegram.
      *
      * @param string $first_name First name

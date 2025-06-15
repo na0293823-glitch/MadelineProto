@@ -360,17 +360,20 @@ final class WriteLoop extends Loop implements Subscriber
                 throw new AssertionError("NO MESSAGE SENT in $this!");
             }
             unset($MTmessages);
-            $plaintext = $this->shared->getTempAuthKey()->getServerSalt().$this->connection->session_id.Tools::packSignedLong($message_id).pack('VV', $seq_no, $message_data_length).$message_data;
+
+            $auth = $this->shared->auth;
+
+            $plaintext = $auth->getServerSalt().$this->connection->session_id.Tools::packSignedLong($message_id).pack('VV', $seq_no, $message_data_length).$message_data;
             $padding = Tools::posmod(-\strlen($plaintext), 16);
             if ($padding < 12) {
                 $padding += 16;
             }
             $padding = Tools::random($padding);
-            $message_key_large = hash('sha256', substr($this->shared->getTempAuthKey()->getAuthKey(), 88, 32).$plaintext.$padding, true);
+            $message_key_large = hash('sha256', $auth->getTempAuthKeyForHash().$plaintext.$padding, true);
             $message_key = substr($message_key_large, 8, 16);
             //$ack = unpack('V', substr($message_key_large, 0, 4))[1] | (1 << 31);
-            [$aes_key, $aes_iv] = Crypt::kdf($message_key, $this->shared->getTempAuthKey()->getAuthKey());
-            $message = $this->shared->getTempAuthKey()->getID().$message_key.Crypt::igeEncrypt($plaintext.$padding, $aes_key, $aes_iv);
+            [$aes_key, $aes_iv] = Crypt::kdf($message_key, $auth->getTempAuthKey());
+            $message = $auth->getTempID().$message_key.Crypt::igeEncrypt($plaintext.$padding, $aes_key, $aes_iv);
             $buffer = $this->connection->stream->getWriteBuffer($total_len = \strlen($message));
             $buffer->bufferWrite($message);
             $this->connection->httpSent();

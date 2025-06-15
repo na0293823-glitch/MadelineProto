@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\MTProto;
 
 use danog\MadelineProto\API;
+use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
 use Webmozart\Assert\Assert;
@@ -35,6 +36,7 @@ final class NewAuthKey implements SimpleSubscriber
     private ?string $authKey = null;
     private ?string $id = null;
     private ?string $tempAuthKey = null;
+    private ?string $tempAuthKeyForHash = null;
     private ?string $tempId = null;
     public ?string $serverSalt = null;
 
@@ -117,6 +119,7 @@ final class NewAuthKey implements SimpleSubscriber
         if ($authKey === null) {
             Assert::null($serverSalt, 'Server salt must be null if auth key is null');
             $this->tempId = null;
+            $this->tempAuthKeyForHash = null;
 
             $this->connectionState->publish(
                 $this->isCdn || $this->id !== null
@@ -127,15 +130,14 @@ final class NewAuthKey implements SimpleSubscriber
             Assert::notNull($serverSalt, 'Server salt must not be null if auth key is not null');
             Assert::notNull($this->id, 'Auth key must not be null if temp auth key is not null');
             $this->tempId = substr(sha1($authKey, true), -8);
+            $this->tempAuthKeyForHash = substr($authKey, 88, 32);
             $this->connectionState->publish(ConnectionState::ENCRYPTED_NOT_INITED);
         }
     }
-    /**
-     * Get auth key.
-     */
-    public function getAuthKey(): ?string
+    /** @return list{string, string} */
+    public function pfsKdf(string $message_key): array
     {
-        return $this->authKey;
+        return Crypt::oldKdf($message_key, $this->authKey);
     }
     /**
      * Get auth key ID.
@@ -150,6 +152,13 @@ final class NewAuthKey implements SimpleSubscriber
     public function getTempAuthKey(): ?string
     {
         return $this->tempAuthKey;
+    }
+    /**
+     * Get auth key.
+     */
+    public function getTempAuthKeyForHash(): ?string
+    {
+        return $this->tempAuthKeyForHash;
     }
     /**
      * Get auth key ID.

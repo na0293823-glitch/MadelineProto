@@ -201,7 +201,7 @@ final class DataCenterConnection implements SimpleSubscriber
                     $encrypted_data = Tools::random(16).Tools::packSignedLong($message_id).pack('VV', $seq_no, \strlen($message_data)).$message_data;
                     $message_key = substr(sha1($encrypted_data, true), -16);
                     $padding = Tools::random(Tools::posmod(-\strlen($encrypted_data), 16));
-                    [$aes_key, $aes_iv] = Crypt::oldKdf($message_key, $this->auth->getAuthKey());
+                    [$aes_key, $aes_iv] = $this->auth->pfsKdf($message_key);
                     $encrypted_message = $this->auth->getID().$message_key.Crypt::igeEncrypt($encrypted_data.$padding, $aes_key, $aes_iv);
                     $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'authMethod' => true]);
                     if ($res === true) {

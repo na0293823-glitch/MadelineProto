@@ -285,13 +285,6 @@ trait ResponseHandler
             'error_code' => (string) $response['error_code'],
         ]);
 
-        if ($request->isMethod
-            && $request->constructor !== 'auth.bindTempAuthKey'
-            && $this->shared->hasTempAuthKey()
-            && !$this->shared->getTempAuthKey()->isInited()
-        ) {
-            $this->shared->getTempAuthKey()->init(true);
-        }
         if (\in_array($response['error_message'], ['PERSISTENT_TIMESTAMP_EMPTY', 'PERSISTENT_TIMESTAMP_INVALID'], true)) {
             return static fn () => new PTSException($response['error_message']);
         }
@@ -358,8 +351,7 @@ trait ResponseHandler
                         $this->session_id = null;
                         $this->session_in_seq_no = 0;
                         $this->session_out_seq_no = 0;
-                        $this->shared->auth->setTempAuthKey(null);
-                        $this->shared->auth->setPermAuthKey(null);
+                        $this->shared->auth->setAuthKey(null);
                         $this->API->logger("Auth key not registered in DC {$this->datacenter} with RPC error {$response['error_message']}, resetting temporary and permanent auth keys...", Logger::ERROR);
                         if ($this->API->loginState->getState()->authorizedDc == $this->datacenter) {
                             $this->API->logger('Permanent auth key was main authorized key, logging out...', Logger::FATAL_ERROR);

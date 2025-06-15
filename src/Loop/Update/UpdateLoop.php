@@ -28,6 +28,7 @@ use danog\MadelineProto\Loop\InternalLoop;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\PeerNotInDbException;
 use danog\MadelineProto\PTSException;
+use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\RPCError\ChannelInvalidError;
 use danog\MadelineProto\RPCError\ChannelPrivateError;
 use danog\MadelineProto\RPCError\ChatForbiddenError;
@@ -36,6 +37,7 @@ use danog\MadelineProto\RPCError\UserBannedInChannelError;
 use Revolt\EventLoop;
 
 use function Amp\delay;
+use danog\MadelineProto\Reactive\SimpleSubscriber;
 
 /**
  * Update loop.
@@ -44,7 +46,7 @@ use function Amp\delay;
  *
  * @author Daniil Gentili <daniil@daniil.it>
  */
-final class UpdateLoop extends Loop
+final class UpdateLoop extends Loop implements SimpleSubscriber
 {
     use InternalLoop {
         __construct as private init;
@@ -61,16 +63,22 @@ final class UpdateLoop extends Loop
      * Feed loop.
      */
     private ?FeedLoop $feeder = null;
+    private int $authorizedDc;
     /**
      * Constructor.
      */
     public function __construct(MTProto $API, private int $channelId)
     {
         $this->init($API);
+        $API->loginState->subscribe($this);
     }
     public function __sleep(): array
     {
         return ['channelId', 'API', 'feeder'];
+    }
+    public function onAttach($initState): void
+    {
+        
     }
     /**
      * Main loop.

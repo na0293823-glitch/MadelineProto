@@ -22,8 +22,10 @@ namespace danog\MadelineProto\Reactive;
  * @internal
  *
  * @template T
+ * 
+ * @extends BaseSubscriber<T>
  */
-interface Subscriber
+interface Subscriber extends BaseSubscriber
 {
     /**
      * @param T $initState

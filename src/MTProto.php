@@ -52,6 +52,7 @@ use danog\BetterPrometheus\BetterHistogram;
 use danog\BetterPrometheus\BetterSummary;
 use danog\MadelineProto\Broadcast\Broadcast;
 use danog\MadelineProto\EventHandler\Message;
+use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\Ipc\Server;
 use danog\MadelineProto\Loop\Generic\PeriodicLoopInternal;
 use danog\MadelineProto\Loop\Update\FeedLoop;
@@ -209,19 +210,9 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * Whether we're authorized.
      *
-     * @var API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT
-     */
-    public int $authorized = API::NOT_LOGGED_IN;
-    /**
-     * Whether we're authorized.
-     *
-     * @var Publisher<API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT>
+     * @var Publisher<LoginState>
      */
     public Publisher $loginState;
-    /**
-     * Main authorized DC ID.
-     */
-    public ?int $authorized_dc = null;
     /**
      * RSA keys.
      *
@@ -489,7 +480,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         if (self::$references) {
             Logger::log('Prompting final serialization (SHUTDOWN)...');
             foreach (self::$references as $instance) {
-                if ($instance->authorized === API::LOGGED_OUT) {
+                if ($instance->loginState->getState()->state === API::LOGGED_OUT) {
                     continue;
                 }
                 $instance->wrapper->serialize();
@@ -951,7 +942,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
                 throw new Exception("Memory profiling is not enabled, set the MEMPROF_PROFILE=1 environment variable or GET parameter to enable it.");
             }
         }
-        $this->loginState ??= new Publisher($this->authorized);
+        $this->loginState ??= new Publisher(new LoginState($this->authorized, $this->authorized_dc));
         $info = $this->getPromGauge("MadelineProto", "version", "Info about the MadelineProto instance");
         $info?->set(1, [
             'php_version' => PHP_VERSION,
@@ -1501,7 +1492,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         if ($this->authorized === API::LOGGED_IN
             && class_exists(VoIPServerConfigInternal::class)
             && !$this->authorization['user']['bot']
-            && $this->datacenter->getDataCenterConnection($this->authorized_dc)->hasTempAuthKey()) {
+            && $this->datacenter->getDataCenterConnection($this->loginState->getState()->authorized_dc)->hasTempAuthKey()) {
             $this->logger->logger('Fetching phone config...');
             VoIPServerConfig::updateDefault($this->methodCallAsyncRead('phone.getCallConfig', []));
         }
@@ -1512,7 +1503,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     public function getCdnConfig(): void
     {
         try {
-            foreach (($this->methodCallAsyncRead('help.getCdnConfig', [], $this->authorized_dc))['public_keys'] as $curkey) {
+            foreach (($this->methodCallAsyncRead('help.getCdnConfig', [], $this->loginState->getState()->authorized_dc))['public_keys'] as $curkey) {
                 $curkey = RSA::load($this->TL, $curkey['public_key']);
                 $this->cdn_rsa_keys[$curkey->fp] = $curkey;
             }
@@ -2083,7 +2074,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /** @internal */
     public function getPasswordSRP(string $password): array
     {
-        return (new PasswordCalculator($this->methodCallAsyncRead('account.getPassword', [], $this->authorized_dc)))->getCheckPassword($password);
+        return (new PasswordCalculator($this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorized_dc)))->getCheckPassword($password);
     }
     /**
      * Get debug information for var_dump.

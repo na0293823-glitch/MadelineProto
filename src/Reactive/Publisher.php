@@ -29,7 +29,7 @@ use WeakMap;
  */
 final class Publisher
 {
-    /** @var WeakMap<Subscriber<T>, null> */
+    /** @var WeakMap<BaseSubscriber<T>, Subscriber<T>> */
     private WeakMap $subscribers;
     /**
      * @param T $state
@@ -48,7 +48,7 @@ final class Publisher
 
     public function __serialize(): array
     {
-        /** @var SplObjectStorage<Subscriber<T>, null>  */
+        /** @var SplObjectStorage<BaseSubscriber<T>, Subscriber<T>>  */
         $subscribers = new SplObjectStorage;
         foreach ($this->subscribers as $subscriber => $v) {
             $subscribers[$subscriber] = $v;
@@ -57,12 +57,12 @@ final class Publisher
     }
 
     /**
-     * @param array{state: T, subscribers: SplObjectStorage<Subscriber<T>, null>} $data
+     * @param array{state: T, subscribers: SplObjectStorage<BaseSubscriber<T>, Subscriber<T>>} $data
      */
     public function __unserialize(array $data): void
     {
         $this->state = $data['state'];
-        /** @var WeakMap<Subscriber<T>, null>  */
+        /** @var WeakMap<BaseSubscriber<T>, Subscriber<T>>  */
         $this->subscribers = new WeakMap;
         foreach ($data['subscribers'] as $subscriber => $v) {
             $this->subscribers[$subscriber] = $v;
@@ -70,11 +70,21 @@ final class Publisher
         }
     }
 
-    /** @param Subscriber<T> $subscriber */
-    public function subscribe(Subscriber $subscriber): void
+    /** @param BaseSubscriber<T> $subscriber */
+    public function subscribe(BaseSubscriber $subscriber): void
     {
-        if (!isset($this->subscribers[$subscriber])) {
-            $this->subscribers[$subscriber] = null;
+        if ($subscriber instanceof WrappedSubscriber) {
+            $subscriberK = $subscriber->getSubscriber();
+        } else {
+            $subscriberK = $subscriber;
+        }
+
+        if ($subscriber instanceof SimpleSubscriber) {
+            $subscriber = new SimpleSubscriberAdaptor($subscriber);
+        }
+
+        if (!isset($this->subscribers[$subscriberK])) {
+            $this->subscribers[$subscriberK] = $subscriber;
             $subscriber->onAttach($this->state);
         }
     }
@@ -84,7 +94,7 @@ final class Publisher
     {
         if ($state !== $this->state) {
             $prev = $this->state;
-            foreach ($this->subscribers as $subscriber => $_) {
+            foreach ($this->subscribers as $subscriber) {
                 $subscriber->onStateChange($prev, $state);
             }
             $this->state = $state;

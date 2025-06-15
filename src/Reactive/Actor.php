@@ -24,7 +24,7 @@ use WeakMap;
 use Webmozart\Assert\Assert;
 
 /** @template T */
-final class Actor extends Loop implements Subscriber {
+final class Actor extends Loop implements WrappedSubscriber {
 
     /** @var SplQueue<list{T}|list{T, T}> */
     private readonly SplQueue $queue;
@@ -57,6 +57,16 @@ final class Actor extends Loop implements Subscriber {
     {
         /** @var SplQueue<list{T}|list{T, T}> */
         $this->queue = new SplQueue;
+        $this->queue->setIteratorMode(SplQueue::IT_MODE_DELETE);
+    }
+
+    #[\Override]
+    public function getSubscriber(): BaseSubscriber
+    {
+        if ($this->subscriber instanceof WrappedSubscriber) {
+            return $this->subscriber->getSubscriber();
+        }
+        return $this->subscriber;
     }
 
     public function __wakeup()
@@ -98,5 +108,11 @@ final class Actor extends Loop implements Subscriber {
             }
         }
         return self::PAUSE;
+    }
+
+    #[\Override]
+    public function __toString(): string
+    {
+        return 'Actor<' . $this->subscriber::class . '>';
     }
 }

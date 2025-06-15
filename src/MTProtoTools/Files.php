@@ -252,7 +252,7 @@ trait Files
         if (!$size) {
             $seekable = false;
         }
-        $datacenter = $this->authorized_dc;
+        $datacenter = $this->loginState->getState()->authorized_dc;
         if ($this->datacenter->has(-$datacenter)) {
             $datacenter = -$datacenter;
         }
@@ -1088,7 +1088,7 @@ trait Files
         if (isset($messageMedia['InputFileLocation']['dc_id'])) {
             $datacenter = $this->isTestMode() ? 10_000 + $messageMedia['InputFileLocation']['dc_id'] : $messageMedia['InputFileLocation']['dc_id'];
         } else {
-            $datacenter = $this->authorized_dc;
+            $datacenter = $this->loginState->getState()->authorized_dc;
         }
         if ($this->datacenter->has(-$datacenter)) {
             $datacenter = -$datacenter;
@@ -1228,7 +1228,7 @@ trait Files
                     $e->wait($cancellation);
                 } catch (FileTokenInvalidError) {
                     $cdn = false;
-                    $datacenter = $this->authorized_dc;
+                    $datacenter = $this->loginState->getState()->authorized_dc;
                     continue 2;
                 }
             } while (true);

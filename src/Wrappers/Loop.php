@@ -96,7 +96,7 @@ trait Loop
      */
     public function loop()
     {
-        if (!$this->authorized) {
+        if (!$this->getAuthorization()) {
             $this->logger->logger('Not authorized, not starting event loop', Logger::FATAL_ERROR);
             return false;
         }

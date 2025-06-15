@@ -137,9 +137,7 @@ trait ResponseHandler
     private function handleNewSession(MTProtoIncomingMessage $message): void
     {
         $this->shared->auth->setServerSalt($message->read()['server_salt']);
-        if ($this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
-            && isset($this->API->updaters[UpdateLoop::GENERIC])
-        ) {
+        if (isset($this->API->updaters[UpdateLoop::GENERIC])) {
             $this->API->updaters[UpdateLoop::GENERIC]->resume();
         }
     }
@@ -353,7 +351,7 @@ trait ResponseHandler
                         return static fn () => new SignalException(sprintf(Lang::$current_lang['account_banned'], $phone ?? '?'));
                     case 'AUTH_KEY_UNREGISTERED':
                     case 'AUTH_KEY_INVALID':
-                        if ($this->API->authorized !== \danog\MadelineProto\API::LOGGED_IN) {
+                        if ($this->API->loginState->getState()->state !== \danog\MadelineProto\API::LOGGED_IN) {
                             $request->reply(static fn () => RPCErrorException::make($response['error_message'], $response['error_code'], $request->constructor));
                             return null;
                         }

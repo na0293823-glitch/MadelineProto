@@ -158,7 +158,7 @@ trait DialogHandler
     private ?LocalMutex $cacheFullDialogsMutex = null;
     private function cacheFullDialogs(): bool
     {
-        if ($this->authorized === API::LOGGED_IN && !$this->authorization['user']['bot'] && $this->settings->getPeer()->getCacheAllPeersOnStartup() && !$this->fetchedFullDialogs) {
+        if ($this->loginState->getState()->state === API::LOGGED_IN && !$this->authorization['user']['bot'] && $this->settings->getPeer()->getCacheAllPeersOnStartup() && !$this->fetchedFullDialogs) {
             $this->cacheFullDialogsMutex ??= new LocalMutex;
             $lock = $this->cacheFullDialogsMutex->acquire();
             try {

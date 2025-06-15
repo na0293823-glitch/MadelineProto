@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * MTProto Auth key.
+ *
+ * This file is part of MadelineProto.
+ * MadelineProto is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * MadelineProto is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU General Public License along with MadelineProto.
+ * If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @author    Daniil Gentili <daniil@daniil.it>
+ * @copyright 2016-2025 Daniil Gentili <daniil@daniil.it>
+ * @license   https://opensource.org/licenses/AGPL-3.0 AGPLv3
+ * @link https://docs.madelineproto.xyz MadelineProto documentation
+ */
+
+namespace danog\MadelineProto\MTProto;
+
+use danog\MadelineProto\API;
+use Webmozart\Assert\Assert;
+
+/** @internal */
+final class LoginState
+{
+    public function __construct(
+        /** @var API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT */
+        public readonly int $state,
+        public readonly ?int $authorized_dc,
+    )
+    {
+        if ($state === API::LOGGED_IN) {
+            Assert::notNull($authorized_dc, 'If state is LOGGED_IN, authorized_dc must not be null');
+        }
+    }
+}

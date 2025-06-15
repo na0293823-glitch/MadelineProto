@@ -22,7 +22,7 @@ namespace danog\MadelineProto\Reactive;
  * @internal
  *
  * @template T
- * 
+ *
  * @extends BaseSubscriber<T>
  */
 interface SimpleSubscriber extends BaseSubscriber

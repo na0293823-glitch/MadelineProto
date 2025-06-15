@@ -37,7 +37,7 @@ use function Amp\delay;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
- * 
+ *
  * @implements SimpleSubscriber<LoginState>
  */
 final class SeqLoop extends Loop implements SimpleSubscriber

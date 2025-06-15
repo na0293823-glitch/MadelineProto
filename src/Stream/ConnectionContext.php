@@ -22,7 +22,6 @@ namespace danog\MadelineProto\Stream;
 
 use Amp\Cancellation;
 use Amp\Socket\ConnectContext;
-use danog\MadelineProto\DataCenter;
 use danog\MadelineProto\Stream\MTProtoTransport\HttpsStream;
 use danog\MadelineProto\Stream\MTProtoTransport\HttpStream;
 use danog\MadelineProto\Stream\MTProtoTransport\ObfuscatedStream;

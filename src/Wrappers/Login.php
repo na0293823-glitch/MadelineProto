@@ -32,7 +32,6 @@ use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\LoginState;
-use danog\MadelineProto\MTProto\PermAuthKey;
 use danog\MadelineProto\MTProtoTools\PasswordCalculator;
 use danog\MadelineProto\RPCError\PasswordHashInvalidError;
 use danog\MadelineProto\RPCError\SessionPasswordNeededError;
@@ -263,7 +262,6 @@ trait Login
             $auth_key = ['auth_key' => $auth_key];
         }
         $dataCenterConnection = $this->datacenter->getDataCenterConnection($mainDcID);
-
 
         $this->logger->logger("Setting auth key in DC $mainDcID", Logger::NOTICE);
         $dataCenterConnection->auth->setAuthKey($auth_key);

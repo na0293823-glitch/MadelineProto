@@ -30,8 +30,7 @@ final class LoginState
         /** @var API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT */
         public readonly int $state,
         public readonly ?int $authorizedDc,
-    )
-    {
+    ) {
         if ($state === API::LOGGED_IN) {
             Assert::notNull($authorizedDc, 'If state is LOGGED_IN, authorizedDc must not be null');
         }

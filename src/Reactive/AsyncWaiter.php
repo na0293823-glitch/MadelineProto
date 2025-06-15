@@ -23,17 +23,17 @@ use Amp\DeferredFuture;
 
 /**
  * @template T
- * 
+ *
  * @implements Subscriber<T>
  */
-final class AsyncWaiter implements Subscriber {
+final class AsyncWaiter implements Subscriber
+{
     /** @var DeferredFuture<T> */
     private readonly DeferredFuture $future;
     public function __construct(
         /** @var T */
         private readonly mixed $waitFor
-    )
-    {
+    ) {
         $this->future = new DeferredFuture;
     }
 

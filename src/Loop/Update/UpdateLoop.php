@@ -29,16 +29,15 @@ use danog\MadelineProto\MTProto;
 use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\PeerNotInDbException;
 use danog\MadelineProto\PTSException;
-use danog\MadelineProto\Reactive\Subscriber;
+use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\RPCError\ChannelInvalidError;
 use danog\MadelineProto\RPCError\ChannelPrivateError;
 use danog\MadelineProto\RPCError\ChatForbiddenError;
 use danog\MadelineProto\RPCError\TimeoutError;
 use danog\MadelineProto\RPCError\UserBannedInChannelError;
-use Revolt\EventLoop;
 
+use Revolt\EventLoop;
 use function Amp\delay;
-use danog\MadelineProto\Reactive\SimpleSubscriber;
 
 /**
  * Update loop.
@@ -46,7 +45,7 @@ use danog\MadelineProto\Reactive\SimpleSubscriber;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
- * 
+ *
  * @implements SimpleSubscriber<LoginState>
  */
 final class UpdateLoop extends Loop implements SimpleSubscriber

@@ -22,7 +22,7 @@ namespace danog\MadelineProto\Reactive;
  * @internal
  *
  * @template T
- * 
+ *
  * @implements Subscriber<T>
  */
 final class SimpleSubscriberAdaptor implements Subscriber
@@ -30,8 +30,7 @@ final class SimpleSubscriberAdaptor implements Subscriber
     public function __construct(
         /** @var SimpleSubscriber<T> $subscriber */
         public readonly SimpleSubscriber $subscriber
-    )
-    {
+    ) {
     }
 
     #[\Override]

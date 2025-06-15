@@ -23,8 +23,6 @@ namespace danog\MadelineProto\MTProto;
 use danog\MadelineProto\API;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
-use danog\MadelineProto\Reactive\Subscriber;
-use Dba\Connection;
 use Webmozart\Assert\Assert;
 
 /**
@@ -51,10 +49,11 @@ final class NewAuthKey implements SimpleSubscriber
         public readonly int $dcId,
         Publisher $loginState,
         private readonly ?self $mainKey = null
-    ) {;
+    ) {
+        ;
         $this->connectionState = new Publisher(
-            $isCdn  
-                ? ConnectionState::UNENCRYPTED 
+            $isCdn
+                ? ConnectionState::UNENCRYPTED
                 : ($isMedia ? ConnectionState::UNENCRYPTED_MEDIA_WAITING_MAIN : ConnectionState::UNENCRYPTED_NO_PERMANENT)
         );
         if ($mainKey === null) {
@@ -91,8 +90,7 @@ final class NewAuthKey implements SimpleSubscriber
             if ($this->isLoggedIn) {
                 $state = $this->dcId === $state->authorizedDc
                     ? ConnectionState::ENCRYPTED
-                    : ConnectionState::ENCRYPTED_NOT_AUTHED
-                ;
+                    : ConnectionState::ENCRYPTED_NOT_AUTHED;
             } else {
                 $state = ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
             }
@@ -122,7 +120,7 @@ final class NewAuthKey implements SimpleSubscriber
 
             $this->connectionState->publish(
                 $this->isCdn || $this->id !== null
-                    ? ConnectionState::UNENCRYPTED 
+                    ? ConnectionState::UNENCRYPTED
                     : ($this->isMedia ? ConnectionState::UNENCRYPTED_MEDIA_WAITING_MAIN : ConnectionState::UNENCRYPTED_NO_PERMANENT)
             );
         } else {

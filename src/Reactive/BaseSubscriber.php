@@ -23,4 +23,6 @@ namespace danog\MadelineProto\Reactive;
  *
  * @template T
  */
-interface BaseSubscriber {}
+interface BaseSubscriber
+{
+}

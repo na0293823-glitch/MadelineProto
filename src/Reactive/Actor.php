@@ -20,15 +20,14 @@ namespace danog\MadelineProto\Reactive;
 
 use danog\Loop\Loop;
 use SplQueue;
-use WeakMap;
-use Webmozart\Assert\Assert;
 
-/** 
+/**
  * @template T
- * 
+ *
  * @implements Subscriber<T>
  */
-final class Actor extends Loop implements Subscriber {
+final class Actor extends Loop implements Subscriber
+{
 
     /** @var SplQueue<list{T}|list{T, T}> */
     private readonly SplQueue $queue;
@@ -36,8 +35,7 @@ final class Actor extends Loop implements Subscriber {
     public function __construct(
         /** @var Subscriber<T> $subscriber */
         private readonly Subscriber $subscriber
-    )
-    {
+    ) {
         /** @var SplQueue<list{T}|list{T, T}> */
         $this->queue = new SplQueue;
         $this->queue->setIteratorMode(SplQueue::IT_MODE_DELETE);
@@ -69,7 +67,7 @@ final class Actor extends Loop implements Subscriber {
     public function loop(): ?float
     {
         foreach ($this->queue as $item) {
-            if (count($item) === 1) {
+            if (\count($item) === 1) {
                 $this->subscriber->onAttach($item[0]);
             } else {
                 $this->subscriber->onStateChange($item[0], $item[1]);

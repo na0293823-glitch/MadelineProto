@@ -19,9 +19,9 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use Amp\Cancellation;
-use Webmozart\Assert\Assert;
 use SplObjectStorage;
 use WeakMap;
+use Webmozart\Assert\Assert;
 
 /**
  * @internal
@@ -103,7 +103,8 @@ final class Publisher
     }
 
     /** @param T $state */
-    public function waitForState($state, ?Cancellation $cancellation = null): void {
+    public function waitForState($state, ?Cancellation $cancellation = null): void
+    {
         if ($state === $this->state) {
             return;
         }

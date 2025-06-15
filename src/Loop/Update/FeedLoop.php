@@ -36,7 +36,7 @@ use danog\MadelineProto\Reactive\SimpleSubscriber;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
- * 
+ *
  * @implements SimpleSubscriber<LoginState>
  */
 final class FeedLoop extends Loop implements SimpleSubscriber

@@ -57,28 +57,34 @@ final class Actor extends Loop implements Subscriber {
     {
         /** @var SplQueue<list{T}|list{T, T}> */
         $this->queue = new SplQueue;
-        $this->start();
     }
 
     public function __wakeup()
     {
         self::$storage ??= new WeakMap;
         self::$storage[$this->subscriber] = $this;
-        $this->start();
     }
 
     #[\Override]
     public function onAttach($initState): void
     {
         $this->queue->enqueue([$initState]);
-        $this->resume(true);
+        if ($this->isRunning()) {
+            $this->resume(true);
+        } else {
+            $this->start();
+        }
     }
 
     #[\Override]
     public function onStateChange($prevState, $state): void
     {
-        $this->queue->enqueue([$prevState, $state]);        
-        $this->resume(true);
+        $this->queue->enqueue([$prevState, $state]);
+        if ($this->isRunning()) {
+            $this->resume(true);
+        } else {
+            $this->start();
+        }
     }
 
     #[\Override]

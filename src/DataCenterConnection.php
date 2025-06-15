@@ -131,7 +131,7 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
     #[\Override]
     public function onStateChange($prevState, $state): void
     {
-        $this->onAttach($state);
+        $this->initAuthorization($state);
     }
 
     /**

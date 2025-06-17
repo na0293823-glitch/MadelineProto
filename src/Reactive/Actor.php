@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\Reactive;
 
+use danog\Loop\GenericLoop;
 use danog\Loop\Loop;
 use SplQueue;
 
@@ -26,11 +27,11 @@ use SplQueue;
  *
  * @implements Subscriber<T>
  */
-final class Actor extends Loop implements Subscriber
+final class Actor implements Subscriber
 {
-
     /** @var SplQueue<list{T}|list{T, T}> */
     private readonly SplQueue $queue;
+    private GenericLoop $loop;
 
     public function __construct(
         /** @var Subscriber<T> $subscriber */
@@ -39,16 +40,36 @@ final class Actor extends Loop implements Subscriber
         /** @var SplQueue<list{T}|list{T, T}> */
         $this->queue = new SplQueue;
         $this->queue->setIteratorMode(SplQueue::IT_MODE_DELETE);
+        $this->__wakeup();
+    }
+
+    public function __sleep()
+    {
+        return ['queue', 'subscriber'];
+    }
+
+    public function __wakeup()
+    {
+        $this->loop = new GenericLoop(function (): ?float {
+            foreach ($this->queue as $item) {
+                if (\count($item) === 1) {
+                    $this->subscriber->onAttach($item[0]);
+                } else {
+                    $this->subscriber->onStateChange($item[0], $item[1]);
+                }
+            }
+            return GenericLoop::PAUSE;
+        }, '');
     }
 
     #[\Override]
     public function onAttach($initState): void
     {
         $this->queue->enqueue([$initState]);
-        if ($this->isRunning()) {
-            $this->resume(true);
+        if ($this->loop->isRunning()) {
+            $this->loop->resume(true);
         } else {
-            $this->start();
+            $this->loop->start();
         }
     }
 
@@ -56,24 +77,11 @@ final class Actor extends Loop implements Subscriber
     public function onStateChange($prevState, $state): void
     {
         $this->queue->enqueue([$prevState, $state]);
-        if ($this->isRunning()) {
-            $this->resume(true);
+        if ($this->loop->isRunning()) {
+            $this->loop->resume(true);
         } else {
-            $this->start();
+            $this->loop->start();
         }
-    }
-
-    #[\Override]
-    public function loop(): ?float
-    {
-        foreach ($this->queue as $item) {
-            if (\count($item) === 1) {
-                $this->subscriber->onAttach($item[0]);
-            } else {
-                $this->subscriber->onStateChange($item[0], $item[1]);
-            }
-        }
-        return self::PAUSE;
     }
 
     #[\Override]

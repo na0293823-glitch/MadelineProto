@@ -102,6 +102,10 @@ final class DataCenterConnection implements SimpleSubscriber
     {
         $this->__wakeup();
     }
+    public function __sleep()
+    {
+        return ['auth', 'API', 'datacenter'];
+    }
     public function __wakeup(): void
     {
         $media = DataCenter::isMedia($this->datacenter);

@@ -104,10 +104,6 @@ final class Publisher
     /** @param T $state */
     public function publish($state): void
     {
-        if (!$this->wokeup) {
-            throw new AssertionError("Trying to publish a state on a not yet waken up instance!");
-        }
-
         if ($state != $this->state) {
             $prev = $this->state;
             foreach ($this->subscribers as $subscriber) {

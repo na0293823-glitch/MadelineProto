@@ -1002,12 +1002,16 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             $q->setIteratorMode(SplQueue::IT_MODE_DELETE);
             $this->updateQueue = $q;
         }
-        $legacy = $this->datacenter?->getLegacy();
-        if ($legacy) {
-            $this->datacenter = new DataCenter($this);
-            foreach ($legacy as $dc => $socket) {
-                $this->datacenter->getDataCenterConnection($dc, $socket);
+        if (isset($this->datacenter)) {
+            $legacy = $this->datacenter->getLegacy();
+            if ($legacy) {
+                $this->datacenter = new DataCenter($this);
+                foreach ($legacy as $dc => $socket) {
+                    $this->datacenter->getDataCenterConnection($dc, $socket);
+                }
             }
+        } else {
+            $this->datacenter = new DataCenter($this);
         }
 
         if (isset($this->channels_state)) {

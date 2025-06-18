@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use Amp\Cancellation;
+use AssertionError;
 use WeakMap;
 use Webmozart\Assert\Assert;
 
@@ -103,6 +104,10 @@ final class Publisher
     /** @param T $state */
     public function publish($state): void
     {
+        if (!$this->wokeup) {
+            throw new AssertionError("Trying to publish a state on a not yet waken up instance!");
+        }
+
         if ($state != $this->state) {
             $prev = $this->state;
             foreach ($this->subscribers as $subscriber) {

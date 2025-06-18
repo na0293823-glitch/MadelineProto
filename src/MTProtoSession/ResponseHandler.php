@@ -24,11 +24,13 @@ use Amp\SignalException;
 use danog\BetterPrometheus\BetterHistogram;
 use danog\Loop\Loop;
 use danog\MadelineProto\API;
+use danog\MadelineProto\DataCenterConnection;
 use danog\MadelineProto\FileRedirect;
 use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\Update\UpdateLoop;
 use danog\MadelineProto\MTProto;
+use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
@@ -50,6 +52,7 @@ use const PHP_EOL;
  *
  * @property ?BetterHistogram $requestLatencies
  * @property MTProto $API
+ * @property DataCenterConnection $shared
  * @internal
  */
 trait ResponseHandler
@@ -327,6 +330,12 @@ trait ResponseHandler
                 $this->methodRecall($request, $datacenter);
                 return null;
             case 400:
+                if ($response['error_message'] === 'CONNECTION_NOT_INITED') {
+                    $this->shared->auth->connectionState->publish(ConnectionState::ENCRYPTED_NOT_INITED);
+                    $this->API->logger("Resending $request...");
+                    $this->methodRecall($request, $this->datacenter);
+                    return null;
+                }
                 return static fn () => RPCErrorException::make($response['error_message'], $response['error_code'], $request->constructor);
             case 401:
                 switch ($response['error_message']) {

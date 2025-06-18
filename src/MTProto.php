@@ -1006,8 +1006,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         if ($legacy) {
             $this->datacenter = new DataCenter($this);
             foreach ($legacy as $dc => $socket) {
-                $this->datacenter->getDataCenterConnection($dc)
-                    ->importFromLegacy($socket);
+                $this->datacenter->getDataCenterConnection($dc, $socket);
             }
         }
 

@@ -384,7 +384,7 @@ final class DataCenter
      *
      * @param int $dc DC ID
      */
-    public function getDataCenterConnection(int $dc): DataCenterConnection
+    public function getDataCenterConnection(int $dc, ?DataCenterConnection $legacy = null): DataCenterConnection
     {
         if (!isset($this->list[$dc]) || !$this->list[$dc]->hasCtx()) {
             $this->API->logger("Acquiring connect lock for $dc!", Logger::VERBOSE);
@@ -396,7 +396,10 @@ final class DataCenter
                 $ctxs = $this->generateContexts($dc);
 
                 $this->API->logger("Connecting to DC {$dc}", Logger::WARNING);
-                $this->list[$dc] ??= new DataCenterConnection($this->API, $dc);
+                $this->list[$dc] ??= new DataCenterConnection($this->API, $dc, $legacy);
+                if ($legacy) {
+                    $this->list[$dc]->importFromLegacy($legacy);
+                }
                 $this->list[$dc]->setCtx($ctxs);
                 $this->list[$dc]->connect();
                 $this->list[$dc]->auth->connectionState->wakeup();

@@ -315,10 +315,10 @@ trait Login
         return $res;
     }
     /** @internal */
-    public function processAuthorization(array $authorization, int $datacenter): array
+    public function processAuthorization(array $authorization, int $datacenter): void
     {
         if ($this->loginState->getState()->state === \danog\MadelineProto\API::LOGGED_IN) {
-            throw new Exception(Lang::$current_lang['already_loggedIn']);
+            return;
         }
         $this->authorization = $authorization;
         $this->loginState->publish(new LoginState(API::LOGGED_IN, $datacenter));
@@ -329,7 +329,6 @@ trait Login
         $this->startUpdateSystem();
         $this->initDb();
         $this->serialize();
-        return $authorization;
     }
     /**
      * Update the 2FA password.

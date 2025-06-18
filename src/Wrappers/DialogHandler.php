@@ -23,6 +23,7 @@ namespace danog\MadelineProto\Wrappers;
 use Amp\Sync\LocalMutex;
 use danog\MadelineProto\API;
 use danog\MadelineProto\Exception;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\Settings;
 use danog\MadelineProto\Tools;
 use Revolt\EventLoop;
@@ -71,7 +72,7 @@ trait DialogHandler
                         ...$this->botDialogsUpdatesState,
                         'pts_total_limit' => 2147483647,
                         'floodWaitLimit' => 86400,
-                        'userRelated' => true,
+                        'specialMethodType' => SpecialMethodType::USER_RELATED,
                     ],
                 );
                 switch ($result['_']) {

@@ -36,6 +36,6 @@ final class Container extends MTProtoOutgoingMessage
      */
     public function __construct(Connection $connection, public readonly array $msgs)
     {
-        parent::__construct($connection, [], 'msg_container', '', false, false, false, false, false, null);
+        parent::__construct($connection, [], 'msg_container', '', false, false, null, null);
     }
 }

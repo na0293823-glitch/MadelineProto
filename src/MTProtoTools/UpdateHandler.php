@@ -125,6 +125,7 @@ use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\Update\FeedLoop;
 use danog\MadelineProto\Loop\Update\UpdateLoop;
 use danog\MadelineProto\MTProto\LoginState;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\ParseMode;
 use danog\MadelineProto\PeerNotInDbException;
 use danog\MadelineProto\ResponseException;
@@ -1136,13 +1137,13 @@ trait UpdateHandler
                     [
                         'api_id' => $this->settings->getAppInfo()->getApiId(),
                         'api_hash' => $this->settings->getAppInfo()->getApiHash(),
-                        'authMethod' => true,
+                        'specialMethodType' => SpecialMethodType::USER_RELATED,
                     ],
                 );
                 if ($authorization['_'] === 'auth.loginTokenMigrateTo') {
                     $datacenter = $this->isTestMode() ? 10_000 + $authorization['dc_id'] : $authorization['dc_id'];
                     $this->loginState->publish($this->API->loginState->getState()->setDc($datacenter));
-                    $authorization['authMethod'] = true;
+                    $authorization['specialMethodType'] = SpecialMethodType::USER_RELATED;
                     $authorization = $this->methodCallAsyncRead(
                         'auth.importLoginToken',
                         $authorization,

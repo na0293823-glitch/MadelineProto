@@ -34,6 +34,7 @@ use danog\MadelineProto\Loop\Connection\WriteLoop;
 use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\MTProtoSession\Session;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Stream\BufferedStreamInterface;
@@ -555,7 +556,7 @@ final class Connection
         $this->connect();
         if ($message->unencrypted) {
             $this->unencryptedPendingOutgoing->enqueue($message);
-        } elseif ($message->unauthedMethod) {
+        } elseif ($message->specialMethodType === SpecialMethodType::UNAUTHED_METHOD) {
             $this->uninitedPendingOutgoing->enqueue($message);
         } else {
             $this->mainPendingOutgoing->enqueue($message);

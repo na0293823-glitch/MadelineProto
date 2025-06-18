@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProtoTools;
 
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\Settings;
 use danog\MadelineProto\WrappedFuture;
 
@@ -42,6 +43,9 @@ trait CallHandler
      */
     public function methodCallAsyncRead(string $method, array $args, ?int $datacenter = null)
     {
+        if (isset($args['specialMethodType']) && $args['specialMethodType'] === SpecialMethodType::USER_RELATED) {
+            $datacenter = $this->loginState->getState()->authorizedDc;
+        }
         return ($this->datacenter->waitGetConnection($datacenter ?? $this->datacenter->currentDatacenter))->methodCallAsyncRead($method, $args);
     }
     /**

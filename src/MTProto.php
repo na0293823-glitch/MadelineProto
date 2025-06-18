@@ -58,6 +58,7 @@ use danog\MadelineProto\Loop\Update\FeedLoop;
 use danog\MadelineProto\Loop\Update\SeqLoop;
 use danog\MadelineProto\Loop\Update\UpdateLoop;
 use danog\MadelineProto\MTProto\LoginState;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\MTProtoTools\AuthKeyHandler;
 use danog\MadelineProto\MTProtoTools\CallHandler;
 use danog\MadelineProto\MTProtoTools\CombinedUpdatesState;
@@ -1585,7 +1586,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     public function fullGetSelf(): array|false
     {
         try {
-            $this->authorization = ['user' => ($this->methodCallAsyncRead('users.getUsers', ['id' => [['_' => 'inputUserSelf']], 'userRelated' => true]))[0]];
+            $this->authorization = ['user' => ($this->methodCallAsyncRead('users.getUsers', ['id' => [['_' => 'inputUserSelf']], 'specialMethodType' => SpecialMethodType::USER_RELATED]))[0]];
         } catch (RPCErrorException $e) {
             $this->logger->logger($e->getMessage());
             return false;

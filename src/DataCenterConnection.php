@@ -27,6 +27,7 @@ use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\NewAuthKey;
 use danog\MadelineProto\MTProto\PermAuthKey;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
@@ -198,7 +199,7 @@ final class DataCenterConnection implements SimpleSubscriber
                     $padding = Tools::random(Tools::posmod(-\strlen($encrypted_data), 16));
                     [$aes_key, $aes_iv] = $this->auth->pfsKdf($message_key);
                     $encrypted_message = $this->auth->getID().$message_key.Crypt::igeEncrypt($encrypted_data.$padding, $aes_key, $aes_iv);
-                    $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'unauthedMethod' => true]);
+                    $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'specialMethodType' => SpecialMethodType::UNAUTHED_METHOD]);
                     if ($res === true) {
                         $logger->logger("Bound temporary and permanent authorization keys, DC {$this->datacenter}", Logger::NOTICE);
                         $this->auth->bind();
@@ -235,7 +236,7 @@ final class DataCenterConnection implements SimpleSubscriber
                         ),
                     ]
                 ),
-                'unauthedMethod' => true,
+                'specialMethodType' => SpecialMethodType::UNAUTHED_METHOD
             ]);
             $this->auth->init();
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
@@ -248,9 +249,9 @@ final class DataCenterConnection implements SimpleSubscriber
             $authorized_socket->waitGetConnection();
             $e = $authorized_socket->getAuthConnection()->methodCallAsyncRead(
                 'auth.exportAuthorization',
-                ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true]
+                ['dc_id' => $this->datacenter % 10_000, 'specialMethodType' => SpecialMethodType::USER_RELATED]
             );
-            $e['unauthedMethod'] = true;
+            $e['specialMethodType'] = SpecialMethodType::UNAUTHED_METHOD;
             $connection->methodCallAsyncRead('auth.importAuthorization', $e);
             $this->auth->authorize();
         }

@@ -32,6 +32,7 @@ use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\LoginState;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\MTProtoTools\PasswordCalculator;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\RPCError\PasswordHashInvalidError;
@@ -71,7 +72,7 @@ trait Login
                 'bot_auth_token' => $token,
                 'api_id' => $this->settings->getAppInfo()->getApiId(),
                 'api_hash' => $this->settings->getAppInfo()->getApiHash(),
-                'authMethod' => true
+                'specialMethodType' => SpecialMethodType::USER_RELATED
             ],
         );
     }
@@ -102,7 +103,7 @@ trait Login
                     [
                         'api_id' => $this->settings->getAppInfo()->getApiId(),
                         'api_hash' => $this->settings->getAppInfo()->getApiHash(),
-                        'authMethod' => true
+                        'specialMethodType' => SpecialMethodType::USER_RELATED
                     ],
                 );
                 if ($authorization['_'] === 'auth.loginToken') {
@@ -116,7 +117,7 @@ trait Login
                 if ($authorization['_'] === 'auth.loginTokenMigrateTo') {
                     $datacenter = $this->isTestMode() ? 10_000 + $authorization['dc_id'] : $authorization['dc_id'];
                     $this->loginState->publish($this->API->loginState->getState()->setDc($datacenter));
-                    $authorization['authMethod'] = true;
+                    $authorization['specialMethodType'] = SpecialMethodType::USER_RELATED;
                     $authorization = $this->methodCallAsyncRead(
                         'auth.importLoginToken',
                         $authorization,
@@ -197,7 +198,7 @@ trait Login
                 'api_id' => $this->settings->getAppInfo()->getApiId(),
                 'api_hash' => $this->settings->getAppInfo()->getApiHash(),
                 'lang_code' => $this->settings->getAppInfo()->getLangCode(),
-                'authMethod' => true,
+                'specialMethodType' => SpecialMethodType::USER_RELATED,
             ],
         );
         $this->authorization['phone_number'] = $number;
@@ -219,7 +220,7 @@ trait Login
         $this->setLoginState(API::NOT_LOGGED_IN);
         $this->logger->logger(Lang::$current_lang['login_user'], Logger::NOTICE);
         try {
-            $authorization = $this->methodCallAsyncRead('auth.signIn', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $code, 'authMethod' => true]);
+            $authorization = $this->methodCallAsyncRead('auth.signIn', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $code, 'specialMethodType' => SpecialMethodType::USER_RELATED]);
         } catch (SessionPasswordNeededError) {
             $this->logger->logger(Lang::$current_lang['login_2fa_enabled'], Logger::NOTICE);
             $this->authorization = $this->getPassword();
@@ -298,7 +299,7 @@ trait Login
         }
         $this->setLoginState(API::NOT_LOGGED_IN);
         $this->logger->logger(Lang::$current_lang['signing_up'], Logger::NOTICE);
-        return $this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name, 'authMethod' => true]);
+        return $this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name, 'specialMethodType' => SpecialMethodType::USER_RELATED]);
     }
     /**
      * Complete 2FA login.
@@ -312,9 +313,9 @@ trait Login
         }
         $this->logger->logger(Lang::$current_lang['login_user'], Logger::NOTICE);
         try {
-            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password, 'authMethod' => true]);
+            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password, 'specialMethodType' => SpecialMethodType::USER_RELATED]);
         } catch (PasswordHashInvalidError) {
-            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password, 'authMethod' => true]);
+            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password, 'specialMethodType' => SpecialMethodType::USER_RELATED]);
         }
         return $res;
     }

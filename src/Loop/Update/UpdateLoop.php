@@ -28,6 +28,7 @@ use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\InternalLoop;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\MTProto\LoginState;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\PeerNotInDbException;
 use danog\MadelineProto\PTSException;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
@@ -83,6 +84,7 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
     public function onSimpleStateChange($state): void
     {
         if ($state->state !== API::LOGGED_IN) {
+            $this->authorizedDc = null;
             return;
         }
         if (null !== $this->authorizedDc = $state->authorizedDc) {
@@ -193,7 +195,7 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
                 $this->API->logger('Resumed and fetching normal difference...', Logger::ULTRA_VERBOSE);
                 do {
                     try {
-                        $difference = $this->API->methodCallAsyncRead('updates.getDifference', ['pts' => $state->pts(), 'date' => $state->date(), 'qts' => $state->qts(), 'userRelated' => true], $this->authorizedDc);
+                        $difference = $this->API->methodCallAsyncRead('updates.getDifference', ['pts' => $state->pts(), 'date' => $state->date(), 'qts' => $state->qts(), 'specialMethodType' => SpecialMethodType::USER_RELATED], $this->authorizedDc);
                         break;
                     } catch (TimeoutError) {
                         delay(1.0);

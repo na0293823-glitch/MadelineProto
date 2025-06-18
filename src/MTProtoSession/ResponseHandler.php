@@ -34,6 +34,7 @@ use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\PTSException;
 use danog\MadelineProto\RPCError\FloodPremiumWaitError;
 use danog\MadelineProto\RPCError\FloodWaitError;
@@ -201,7 +202,7 @@ trait ResponseHandler
             return;
         }
         $constructor = $response['_'] ?? '';
-        if ($request->authMethod) {
+        if ($request->specialMethodType === SpecialMethodType::USER_RELATED) {
             $this->API->loginState->publish($this->API->loginState->getState()->setDc($this->datacenter));
         }
         if ($constructor === 'rpc_error') {
@@ -238,8 +239,6 @@ trait ResponseHandler
             return;
         } elseif ($constructor === 'auth.authorization') {
             EventLoop::queue($this->API->processAuthorization(...), $response, $this->datacenter);
-        } elseif ($request->userRelated) {
-            $this->API->loginState->publish(new LoginState(API::LOGGED_IN, $this->datacenter));
         }
 
         if (isset($response['_']) && !$this->shared->auth->isCdn) {

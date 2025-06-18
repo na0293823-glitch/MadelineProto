@@ -110,12 +110,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         public readonly string $type,
         public readonly bool $isMethod,
         public readonly bool $unencrypted,
-        public readonly bool $unauthedMethod,
-        public readonly bool $authMethod,
-        /**
-         * Whether this message is related to a user, as in getting a successful reply means we have auth.
-         */
-        public readonly bool $userRelated,
+        public readonly ?SpecialMethodType $specialMethodType,
         public readonly ?Cancellation $cancellation,
         public readonly ?string $subtype = null,
         /**

@@ -1275,6 +1275,13 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     }
     /**
      * @internal
+     * @param API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT $state
+     */
+    public function setLoginState(int $state): void {
+        $this->loginState->publish($this->loginState->getState()->setState($state));
+    }
+    /**
+     * @internal
      */
     public function isInited(): bool
     {
@@ -2034,9 +2041,13 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         return ['_' => 'inputDialogPeer', 'peer' => $this->getInputPeer($id)];
     }
     /** @internal */
+    public function getPassword(): array {
+        return $this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorizedDc);
+    }
+    /** @internal */
     public function getPasswordSRP(string $password): array
     {
-        return (new PasswordCalculator($this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorizedDc)))->getCheckPassword($password);
+        return (new PasswordCalculator($this->getPassword()))->getCheckPassword($password);
     }
     /**
      * Get debug information for var_dump.

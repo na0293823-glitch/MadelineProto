@@ -1136,23 +1136,25 @@ trait UpdateHandler
                     [
                         'api_id' => $this->settings->getAppInfo()->getApiId(),
                         'api_hash' => $this->settings->getAppInfo()->getApiHash(),
+                        'authMethod' => true,
                     ],
                 );
                 if ($authorization['_'] === 'auth.loginTokenMigrateTo') {
                     $datacenter = $this->isTestMode() ? 10_000 + $authorization['dc_id'] : $authorization['dc_id'];
+                    $this->loginState->publish($this->API->loginState->getState()->setDc($datacenter));
+                    $authorization['authMethod'] = true;
                     $authorization = $this->methodCallAsyncRead(
                         'auth.importLoginToken',
                         $authorization,
-                        $datacenter
                     );
                 }
             } catch (SessionPasswordNeededError) {
                 $this->logger->logger(Lang::$current_lang['login_2fa_enabled'], Logger::NOTICE);
-                $this->authorization = $this->methodCallAsyncRead('account.getPassword', [], $datacenter ?? null);
+                $this->authorization = $this->getPassword();
                 if (!isset($this->authorization['hint'])) {
                     $this->authorization['hint'] = '';
                 }
-                $this->loginState->publish(new LoginState(API::WAITING_PASSWORD, null));
+                $this->loginState->publish($this->loginState->setState(API::WAITING_PASSWORD));
                 $this->qrLoginDeferred?->cancel();
                 $this->qrLoginDeferred = null;
                 return;

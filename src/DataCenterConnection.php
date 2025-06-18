@@ -198,7 +198,7 @@ final class DataCenterConnection implements SimpleSubscriber
                     $padding = Tools::random(Tools::posmod(-\strlen($encrypted_data), 16));
                     [$aes_key, $aes_iv] = $this->auth->pfsKdf($message_key);
                     $encrypted_message = $this->auth->getID().$message_key.Crypt::igeEncrypt($encrypted_data.$padding, $aes_key, $aes_iv);
-                    $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'authMethod' => true]);
+                    $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'unauthedMethod' => true]);
                     if ($res === true) {
                         $logger->logger("Bound temporary and permanent authorization keys, DC {$this->datacenter}", Logger::NOTICE);
                         $this->auth->bind();
@@ -235,10 +235,11 @@ final class DataCenterConnection implements SimpleSubscriber
                         ),
                     ]
                 ),
-                'authMethod' => true,
+                'unauthedMethod' => true,
             ]);
             $this->auth->init();
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
+            Assert::eq($this->API->loginState->getState()->state, API::LOGGED_IN);
             $authed = $this->API->loginState->getState()->authorizedDc;
             Assert::notNull($authed);
 
@@ -249,7 +250,7 @@ final class DataCenterConnection implements SimpleSubscriber
                 'auth.exportAuthorization',
                 ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true]
             );
-            $e['authMethod'] = true;
+            $e['unauthedMethod'] = true;
             $connection->methodCallAsyncRead('auth.importAuthorization', $e);
             $this->auth->authorize();
         }

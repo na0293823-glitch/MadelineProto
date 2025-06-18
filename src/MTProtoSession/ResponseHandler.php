@@ -201,6 +201,9 @@ trait ResponseHandler
             return;
         }
         $constructor = $response['_'] ?? '';
+        if ($request->authMethod) {
+            $this->API->loginState->publish($this->API->loginState->getState()->setDc($this->datacenter));
+        }
         if ($constructor === 'rpc_error') {
             try {
                 $exception = $this->handleRpcError($request, $response);

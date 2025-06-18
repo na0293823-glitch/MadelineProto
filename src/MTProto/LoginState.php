@@ -35,4 +35,18 @@ final class LoginState
             Assert::notNull($authorizedDc, 'If state is LOGGED_IN, authorizedDc must not be null');
         }
     }
+
+    /** @param API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT $state */
+    public function setState(int $state): self {
+        if ($state === $this->state) {
+            return $this;
+        }
+        return new self($state, $this->authorizedDc);
+    }
+    public function setDc(int $dc): self {
+        if ($dc === $this->authorizedDc) {
+            return $this;
+        }
+        return new self($this->state, $dc);
+    }
 }

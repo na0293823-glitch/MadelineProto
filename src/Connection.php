@@ -555,7 +555,7 @@ final class Connection
         $this->connect();
         if ($message->unencrypted) {
             $this->unencryptedPendingOutgoing->enqueue($message);
-        } elseif ($message->authMethod) {
+        } elseif ($message->unauthedMethod) {
             $this->uninitedPendingOutgoing->enqueue($message);
         } else {
             $this->mainPendingOutgoing->enqueue($message);

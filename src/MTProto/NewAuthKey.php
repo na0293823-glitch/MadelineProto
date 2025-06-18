@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
+use danog\MadelineProto\API;
 use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
@@ -86,7 +87,10 @@ final class NewAuthKey implements SimpleSubscriber
         }
 
         Assert::isInstanceOf($state, LoginState::class);
-        $this->authedDcId = $state->authorizedDc;
+        $this->authedDcId = $state->state === API::LOGGED_IN 
+            ? $state->authorizedDc
+            : null
+        ;
         if ($this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
             || $this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
         ) {

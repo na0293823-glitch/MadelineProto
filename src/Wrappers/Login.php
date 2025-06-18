@@ -33,6 +33,7 @@ use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\MTProtoTools\PasswordCalculator;
+use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\RPCError\PasswordHashInvalidError;
 use danog\MadelineProto\RPCError\SessionPasswordNeededError;
 use danog\MadelineProto\RPCErrorException;
@@ -45,6 +46,7 @@ use danog\MadelineProto\Tools;
  *
  * @property Settings     $settings    Settings
  * @property ?LoginQrCode $loginQrCode
+ * @property ?Publisher<LoginState> $loginState
  * @internal
  */
 trait Login
@@ -69,6 +71,7 @@ trait Login
                 'bot_auth_token' => $token,
                 'api_id' => $this->settings->getAppInfo()->getApiId(),
                 'api_hash' => $this->settings->getAppInfo()->getApiHash(),
+                'authMethod' => true
             ],
         );
     }
@@ -99,9 +102,9 @@ trait Login
                     [
                         'api_id' => $this->settings->getAppInfo()->getApiId(),
                         'api_hash' => $this->settings->getAppInfo()->getApiHash(),
+                        'authMethod' => true
                     ],
                 );
-                $datacenter = $this->datacenter->currentDatacenter;
                 if ($authorization['_'] === 'auth.loginToken') {
                     return $this->loginQrCode = new LoginQrCode(
                         $this,
@@ -112,19 +115,20 @@ trait Login
 
                 if ($authorization['_'] === 'auth.loginTokenMigrateTo') {
                     $datacenter = $this->isTestMode() ? 10_000 + $authorization['dc_id'] : $authorization['dc_id'];
+                    $this->loginState->publish($this->API->loginState->getState()->setDc($datacenter));
+                    $authorization['authMethod'] = true;
                     $authorization = $this->methodCallAsyncRead(
                         'auth.importLoginToken',
                         $authorization,
-                        $datacenter
                     );
                 }
             } catch (SessionPasswordNeededError) {
                 $this->logger->logger(Lang::$current_lang['login_2fa_enabled'], Logger::NOTICE);
-                $this->authorization = $this->methodCallAsyncRead('account.getPassword', [], $datacenter ?? null);
+                $this->authorization = $this->getPassword();
                 if (!isset($this->authorization['hint'])) {
                     $this->authorization['hint'] = '';
                 }
-                $this->loginState->publish(new LoginState(API::WAITING_PASSWORD, null));
+                $this->setLoginState(API::WAITING_PASSWORD);
                 $this->qrLoginDeferred?->cancel();
                 $this->qrLoginDeferred = null;
                 return null;
@@ -193,11 +197,12 @@ trait Login
                 'api_id' => $this->settings->getAppInfo()->getApiId(),
                 'api_hash' => $this->settings->getAppInfo()->getApiHash(),
                 'lang_code' => $this->settings->getAppInfo()->getLangCode(),
+                'authMethod' => true,
             ],
         );
         $this->authorization['phone_number'] = $number;
         //$this->authorization['_'] .= 'MP';
-        $this->loginState->publish(new LoginState(\danog\MadelineProto\API::WAITING_CODE, null));
+        $this->setLoginState(API::WAITING_CODE);
         $this->logger->logger(Lang::$current_lang['login_code_sent'], Logger::NOTICE);
         return $this->authorization;
     }
@@ -211,23 +216,23 @@ trait Login
         if ($this->loginState->getState()->state !== \danog\MadelineProto\API::WAITING_CODE) {
             throw new Exception(Lang::$current_lang['login_code_uncalled']);
         }
-        $this->loginState->publish(new LoginState(API::NOT_LOGGED_IN, null));
+        $this->setLoginState(API::NOT_LOGGED_IN);
         $this->logger->logger(Lang::$current_lang['login_user'], Logger::NOTICE);
         try {
-            $authorization = $this->methodCallAsyncRead('auth.signIn', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $code]);
+            $authorization = $this->methodCallAsyncRead('auth.signIn', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $code, 'authMethod' => true]);
         } catch (SessionPasswordNeededError) {
             $this->logger->logger(Lang::$current_lang['login_2fa_enabled'], Logger::NOTICE);
-            $this->authorization = $this->methodCallAsyncRead('account.getPassword', []);
+            $this->authorization = $this->getPassword();
             if (!isset($this->authorization['hint'])) {
                 $this->authorization['hint'] = '';
             }
-            $this->loginState->publish(new LoginState(\danog\MadelineProto\API::WAITING_PASSWORD, null));
+            $this->setLoginState(API::WAITING_PASSWORD);
 
             return $this->authorization;
         } catch (RPCErrorException $e) {
             if ($e->rpc === 'PHONE_NUMBER_UNOCCUPIED') {
                 $this->logger->logger(Lang::$current_lang['login_need_signup'], Logger::NOTICE);
-                $this->loginState->publish(new LoginState(\danog\MadelineProto\API::WAITING_SIGNUP, null));
+                $this->setLoginState(API::WAITING_SIGNUP);
 
                 $this->authorization['phone_code'] = $code;
                 return ['_' => 'account.needSignup'];
@@ -236,7 +241,7 @@ trait Login
         }
         if ($authorization['_'] === 'auth.authorizationSignUpRequired') {
             $this->logger->logger(Lang::$current_lang['login_need_signup'], Logger::NOTICE);
-            $this->loginState->publish(new LoginState(\danog\MadelineProto\API::WAITING_SIGNUP, null));
+            $this->setLoginState(API::WAITING_SIGNUP);
             $this->authorization['phone_code'] = $code;
             $authorization['_'] = 'account.needSignup';
             return $authorization;
@@ -291,9 +296,9 @@ trait Login
         if ($this->loginState->getState()->state !== \danog\MadelineProto\API::WAITING_SIGNUP) {
             throw new Exception(Lang::$current_lang['signup_uncalled']);
         }
-        $this->loginState->publish(new LoginState(API::NOT_LOGGED_IN, null));
+        $this->setLoginState(API::NOT_LOGGED_IN);
         $this->logger->logger(Lang::$current_lang['signing_up'], Logger::NOTICE);
-        return $this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name]);
+        return $this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name, 'authMethod' => true]);
     }
     /**
      * Complete 2FA login.
@@ -307,9 +312,9 @@ trait Login
         }
         $this->logger->logger(Lang::$current_lang['login_user'], Logger::NOTICE);
         try {
-            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password]);
+            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password, 'authMethod' => true]);
         } catch (PasswordHashInvalidError) {
-            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password]);
+            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password, 'authMethod' => true]);
         }
         return $res;
     }
@@ -337,7 +342,7 @@ trait Login
      */
     public function update2fa(array $params): void
     {
-        $hasher = new PasswordCalculator($this->methodCallAsyncRead('account.getPassword', []));
+        $hasher = new PasswordCalculator($this->getPassword());
         $this->methodCallAsyncRead('account.updatePasswordSettings', $hasher->getPassword($params));
     }
 }

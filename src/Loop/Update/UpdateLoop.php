@@ -22,6 +22,7 @@ namespace danog\MadelineProto\Loop\Update;
 
 use Amp\TimeoutException;
 use danog\Loop\Loop;
+use danog\MadelineProto\API;
 use danog\MadelineProto\Exception;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\InternalLoop;
@@ -81,6 +82,9 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
     #[\Override]
     public function onSimpleStateChange($state): void
     {
+        if ($state->state !== API::LOGGED_IN) {
+            return;
+        }
         if (null !== $this->authorizedDc = $state->authorizedDc) {
             if ($this->isRunning()) {
                 $this->resume(true);

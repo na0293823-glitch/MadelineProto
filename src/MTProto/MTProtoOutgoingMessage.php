@@ -93,7 +93,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     private int $tries = 0;
 
     private ?string $checkTimer = null;
-    private readonly string $cancelSubscription;
+    private readonly ?string $cancelSubscription;
 
     /**
      * Create outgoing message.
@@ -290,7 +290,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         $this->body = null;
 
         $this->state |= self::STATE_REPLIED;
-        $this->cancellation->unsubscribe($this->cancelSubscription);
+        $this->cancellation?->unsubscribe($this->cancelSubscription);
         if ($this->resultDeferred) { // Sometimes can get an RPC error for constructors
             $promise = $this->resultDeferred;
             $this->resultDeferred = null;

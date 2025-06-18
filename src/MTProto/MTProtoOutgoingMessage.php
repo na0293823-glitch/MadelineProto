@@ -131,27 +131,29 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     ) {
         parent::__construct(!isset(MTProtoMessage::NOT_CONTENT_RELATED[$constructor]));
 
-        $cancellation?->subscribe(function (CancelledException $e): void {
-            if ($this->hasReply()) {
+        $weak = \WeakReference::create($this);
+        $cancellation?->subscribe(static function (CancelledException $e) use ($weak): void {
+            $self = $weak->get();
+            if ($self == null || $self->hasReply()) {
                 return;
             }
-            if (!$this->wasSent()) {
-                $this->reply(static fn () => throw $e);
+            if (!$self->wasSent()) {
+                $self->reply(static fn () => throw $e);
                 return;
             }
-            $this->reply(static fn () => throw $e);
+            $self->reply(static fn () => throw $e);
 
-            $this->connection->requestResponse?->inc([
-                'method' => $this->constructor,
+            $self->connection->requestResponse?->inc([
+                'method' => $self->constructor,
                 'error_message' => 'Request Timeout',
                 'error_code' => '408',
             ]);
 
-            if ($this->hasMsgId()) {
-                $this->connection->API->logger("Cancelling $this...");
-                $this->connection->API->logger($this->connection->methodCallAsyncRead(
+            if ($self->hasMsgId()) {
+                $self->connection->API->logger("Cancelling $self...");
+                $self->connection->API->logger($self->connection->methodCallAsyncRead(
                     'rpc_drop_answer',
-                    ['req_msg_id' => $this->getMsgId()]
+                    ['req_msg_id' => $self->getMsgId()]
                 ));
             }
         });

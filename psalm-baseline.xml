@@ -3372,7 +3372,7 @@
       <code><![CDATA[$this->dcList[$test][$ipv6][$dc]['cdn'] ?? false]]></code>
       <code><![CDATA[$this->dcList[$test][$ipv6][$dc]['cdn'] ?? false]]></code>
       <code><![CDATA[$this->getSelf()['premium']]]></code>
-      <code><![CDATA[$this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorizedDc)]]></code>
+      <code><![CDATA[$this->methodCallAsyncRead('account.getPassword', ['specialMethodType' => SpecialMethodType::USER_RELATED])]]></code>
     </MixedReturnStatement>
     <NullableReturnStatement>
       <code><![CDATA[$this->authorization['user']['bot']]]></code>
@@ -3402,7 +3402,6 @@
       <code><![CDATA[$this->authorization['user']['id']]]></code>
     </PossiblyNullArrayAccess>
     <PossiblyNullReference>
-      <code><![CDATA[getState]]></code>
       <code><![CDATA[getState]]></code>
       <code><![CDATA[getState]]></code>
       <code><![CDATA[getState]]></code>

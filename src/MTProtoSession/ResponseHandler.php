@@ -31,7 +31,6 @@ use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\Update\UpdateLoop;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\MTProto\ConnectionState;
-use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\SpecialMethodType;

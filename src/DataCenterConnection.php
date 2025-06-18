@@ -243,7 +243,7 @@ final class DataCenterConnection implements SimpleSubscriber
                         'query' => $method,
                     ]
                 ),
-                'specialMethodType' => SpecialMethodType::UNAUTHED_METHOD
+                'specialMethodType' => SpecialMethodType::UNAUTHED_METHOD,
             ]);
             $this->auth->init();
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {

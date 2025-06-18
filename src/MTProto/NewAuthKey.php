@@ -87,10 +87,9 @@ final class NewAuthKey implements SimpleSubscriber
         }
 
         Assert::isInstanceOf($state, LoginState::class);
-        $this->authedDcId = $state->state === API::LOGGED_IN 
+        $this->authedDcId = $state->state === API::LOGGED_IN
             ? $state->authorizedDc
-            : null
-        ;
+            : null;
         if ($this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
             || $this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
         ) {

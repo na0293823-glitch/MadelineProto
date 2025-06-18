@@ -72,7 +72,7 @@ trait Login
                 'bot_auth_token' => $token,
                 'api_id' => $this->settings->getAppInfo()->getApiId(),
                 'api_hash' => $this->settings->getAppInfo()->getApiHash(),
-                'specialMethodType' => SpecialMethodType::USER_RELATED
+                'specialMethodType' => SpecialMethodType::USER_RELATED,
             ],
         );
     }
@@ -103,7 +103,7 @@ trait Login
                     [
                         'api_id' => $this->settings->getAppInfo()->getApiId(),
                         'api_hash' => $this->settings->getAppInfo()->getApiHash(),
-                        'specialMethodType' => SpecialMethodType::USER_RELATED
+                        'specialMethodType' => SpecialMethodType::USER_RELATED,
                     ],
                 );
                 if ($authorization['_'] === 'auth.loginToken') {

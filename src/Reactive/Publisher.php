@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use Amp\Cancellation;
-use AssertionError;
 use WeakMap;
 use Webmozart\Assert\Assert;
 

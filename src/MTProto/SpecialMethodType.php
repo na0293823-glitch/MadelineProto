@@ -20,7 +20,8 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
-enum SpecialMethodType {
+enum SpecialMethodType
+{
     case UNAUTHED_METHOD;
     case USER_RELATED;
 }

@@ -1278,7 +1278,8 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
      * @internal
      * @param API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT $state
      */
-    public function setLoginState(int $state): void {
+    public function setLoginState(int $state): void
+    {
         $this->loginState->publish($this->loginState->getState()->setState($state));
     }
     /**
@@ -2042,7 +2043,8 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         return ['_' => 'inputDialogPeer', 'peer' => $this->getInputPeer($id)];
     }
     /** @internal */
-    public function getPassword(): array {
+    public function getPassword(): array
+    {
         return $this->methodCallAsyncRead('account.getPassword', ['specialMethodType' => SpecialMethodType::USER_RELATED]);
     }
     /** @internal */

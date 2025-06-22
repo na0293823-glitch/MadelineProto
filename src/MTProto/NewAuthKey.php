@@ -213,9 +213,9 @@ final class NewAuthKey implements SimpleSubscriber
                 $this->authedDcId === null
                 ? ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
                 : (
-                    $this->authedDcId === $this->dcId
-                    ? ConnectionState::ENCRYPTED
-                    : ConnectionState::ENCRYPTED_NOT_AUTHED
+                    $this->authedDcId === $this->dcId || $this->isMedia
+                        ? ConnectionState::ENCRYPTED
+                        : ConnectionState::ENCRYPTED_NOT_AUTHED
                 )
             );
         $this->connectionState->publish($state);

@@ -126,6 +126,9 @@ RUN set -eux; \
 		\
 # https://github.com/docker-library/php/issues/439
 		--with-mhash \
+		--enable-fpm \
+		--with-fpm-user=www-data \
+		--with-fpm-group=www-data \
 		\
 # https://github.com/docker-library/php/issues/822
 		--with-pic \
@@ -190,6 +193,50 @@ RUN set -eux; \
 	\
 # smoke test
 	php --version
+
+RUN set -eux; \
+	cd /usr/local/etc; \
+	if [ -d php-fpm.d ]; then \
+		# for some reason, upstream's php-fpm.conf.default has "include=NONE/etc/php-fpm.d/*.conf"
+		sed 's!=NONE/!=!g' php-fpm.conf.default | tee php-fpm.conf > /dev/null; \
+		cp php-fpm.d/www.conf.default php-fpm.d/www.conf; \
+	else \
+		# PHP 5.x doesn't use "include=" by default, so we'll create our own simple config that mimics PHP 7+ for consistency
+		mkdir php-fpm.d; \
+		cp php-fpm.conf.default php-fpm.d/www.conf; \
+		{ \
+			echo '[global]'; \
+			echo 'include=etc/php-fpm.d/*.conf'; \
+		} | tee php-fpm.conf; \
+	fi; \
+	{ \
+		echo '[global]'; \
+		echo 'error_log = /proc/self/fd/2'; \
+		echo; echo '; https://github.com/docker-library/php/pull/725#issuecomment-443540114'; echo 'log_limit = 8192'; \
+		echo; \
+		echo '[www]'; \
+		echo '; php-fpm closes STDOUT on startup, so sending logs to /proc/self/fd/1 does not work.'; \
+		echo '; https://bugs.php.net/bug.php?id=73886'; \
+		echo 'access.log = /proc/self/fd/2'; \
+		echo; \
+		echo 'clear_env = no'; \
+		echo; \
+		echo '; Ensure worker stdout and stderr are sent to the main error log.'; \
+		echo 'catch_workers_output = yes'; \
+		echo 'decorate_workers_output = no'; \
+	} | tee php-fpm.d/docker.conf; \
+	{ \
+		echo '[global]'; \
+		echo 'daemonize = no'; \
+		echo; \
+		echo '[www]'; \
+		echo 'listen = 9000'; \
+	} | tee php-fpm.d/zz-docker.conf; \
+	mkdir -p "$PHP_INI_DIR/conf.d"; \
+	{ \
+		echo '; https://github.com/docker-library/php/issues/878#issuecomment-938595965'; \
+		echo 'fastcgi.logging = Off'; \
+	} > "$PHP_INI_DIR/conf.d/docker-fpm.ini"
 
 COPY tests/dockerfiles/docker-php-* /usr/local/bin/
 ADD https://raw.githubusercontent.com/php/php-src/refs/heads/PHP-8.4/.gdbinit /root/.gdbinit

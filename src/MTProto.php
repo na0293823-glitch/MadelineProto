@@ -634,10 +634,10 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     {
         // Initialize needed stuffs
         Magic::start(light: false);
-        // Parse and store settings
-        $this->updateSettingsInternal($settings, false);
         // Actually instantiate needed classes like a boss
         $this->cleanupProperties();
+        // Parse and store settings
+        $this->updateSettingsInternal($settings, false);
         // Load rsa keys
         $this->rsa_keys = [];
         foreach ($this->settings->getConnection()->getRSAKeys() as $key) {

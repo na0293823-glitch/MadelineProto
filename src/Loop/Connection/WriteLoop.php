@@ -378,7 +378,11 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
                 $message_id = $message['msg_id'];
                 $seq_no = $message['seqno'];
             } else {
-                throw new AssertionError("NO MESSAGE SENT in $this!");
+                $msg = "NO MESSAGE SENT in $this, ";
+                $msg .= $this->queue->isEmpty() ? "messages: true, " : "messages: false, ";
+                $msg .= $this->connection->ack_queue ? "ack: true, " : "ack: false, ";
+                $msg .= $this->queue->check_queue->count() ? "queue: true" : "check queue: false";
+                throw new AssertionError($msg);
             }
             unset($MTmessages);
 

@@ -58,6 +58,7 @@ trait CallHandler
             unset($this->new_outgoing[$id]);
         }
         if ($request instanceof Container) {
+            $this->ack_queue = array_merge($request->acks, $this->ack_queue);
             foreach ($request->msgs as $msg) {
                 $this->methodRecall($msg, $forceDatacenter, $defer);
             }
@@ -163,7 +164,10 @@ trait CallHandler
             throw new Exception("Could not find method $method!");
         }
         $encrypted = $methodInfo['encrypted'];
-        $timeout = new TimeoutCancellation($args['timeout'] ?? ($this->drop ??= (float) $this->API->getSettings()->getRpc()->getRpcDropTimeout()));
+        $timeout = new TimeoutCancellation(
+            $args['timeout'] ?? ($this->drop ??= (float) $this->API->getSettings()->getRpc()->getRpcDropTimeout()),
+            "Timeout while waiting for $method"
+        );
         $cancellation = $cancellation !== null
             ? new CompositeCancellation($cancellation, $timeout)
             : $timeout;
@@ -187,15 +191,16 @@ trait CallHandler
             $message->setMsgId($args['madelineMsgId']);
         }
         $this->sendMessage($message);
+        $message->getSendPromise()->await($cancellation);
         return new WrappedFuture($response->getFuture());
     }
     /**
-     * Send object and make sure it is asynchronously sent (generator).
+     * Send object.
      *
      * @param string $object Object name
      * @param array  $args   Arguments
      */
-    public function objectCall(string $object, array $args, ?DeferredFuture $promise = null): void
+    public function objectCallAsync(string $object, array $args, DeferredFuture $promise): void
     {
         $cancellation = $args['cancellation'] ?? null;
         $cancellation?->throwIfRequested();

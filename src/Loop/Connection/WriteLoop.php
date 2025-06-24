@@ -197,7 +197,7 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
                     $arr[] = $msg;
                 }
                 $this->API->logger("Still missing {$list} on DC {$this->datacenter}, sending state request", Logger::ERROR);
-                $this->connection->objectCall('msgs_state_req', ['msg_ids' => $msgIds, 'cancellation' => new \Amp\TimeoutCancellation(self::LONG_POLL_TIMEOUT)], $deferred);
+                $this->connection->objectCallAsync('msgs_state_req', ['msg_ids' => $msgIds, 'cancellation' => new \Amp\TimeoutCancellation(self::LONG_POLL_TIMEOUT)], $deferred);
                 $deferred->getFuture()->map(function (array|\Closure $result) use ($arr): void {
                     try {
                         if (\is_callable($result)) {
@@ -290,7 +290,7 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
                 }
 
                 $message_id = $message->getMsgId() ?? $this->connection->msgIdHandler->generateMessageId();
-                $this->API->logger("Sending $message as encrypted message to DC $this->datacenter", Logger::ULTRA_VERBOSE);
+                $this->API->logger("Sending $message as encrypted message with id $message_id to DC $this->datacenter", Logger::ULTRA_VERBOSE);
                 $MTmessage = [
                     '_' => 'MTmessage',
                     'msg_id' => $message_id,
@@ -328,7 +328,7 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
                     'bytes' => \strlen($body),
                 ];
                 $count++;
-                unset($acks, $body);
+                unset($body);
             }
             if ($this->connection->isHttp()) {
                 $this->API->logger('Adding http_wait', Logger::ULTRA_VERBOSE);
@@ -345,13 +345,19 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
             }
 
             if ($count > 1 || $has_seq) {
-                $this->API->logger("Wrapping in msg_container ({$count} messages of total size {$total_length}) as encrypted message for DC {$this->datacenter}", Logger::ULTRA_VERBOSE);
                 $message_id = $this->connection->msgIdHandler->generateMessageId();
-                $messages []= new Container($this->connection, $messages);
+                $this->API->logger("Wrapping in msg_container ({$count} messages of total size {$total_length}, id $message_id) as encrypted message for DC {$this->datacenter}", Logger::ULTRA_VERBOSE);
+                $messages []= $ct = new Container(
+                    $this->connection,
+                    $messages,
+                    $acks,
+                );
                 $this->connection->outgoingCtr?->inc();
                 $message_data = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'msg_container', 'messages' => $MTmessages], 'container');
                 $message_data_length = \strlen($message_data);
                 $seq_no = $this->connection->generateOutSeqNo(false);
+                $ct->setMsgId($message_id);
+                $ct->setSeqNo($seq_no);
             } elseif ($count) {
                 $message = $MTmessages[0];
                 $message_data = $message['body'];

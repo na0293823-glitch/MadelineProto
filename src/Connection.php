@@ -521,7 +521,6 @@ final class Connection
     {
         $message->connection = $this;
         $message->trySend();
-        $promise = $message->getSendPromise();
         if (!$message->hasSerializedBody() || $message->shouldRefreshReferences()) {
             $body = $message->getBody();
             if ($message->shouldRefreshReferences()) {
@@ -563,7 +562,6 @@ final class Connection
             $this->mainPendingOutgoing->enqueue($message);
         }
         $this->flush();
-        $promise->await();
     }
     /**
      * Flush pending packets.

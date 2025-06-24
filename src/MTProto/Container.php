@@ -33,9 +33,13 @@ final class Container extends MTProtoOutgoingMessage
      * Constructor.
      *
      * @param list<MTProtoOutgoingMessage> $msgs
+     * @param list<int> $acks
      */
-    public function __construct(Connection $connection, public readonly array $msgs)
-    {
+    public function __construct(
+        Connection $connection,
+        public readonly array $msgs,
+        public readonly array $acks,
+    ) {
         parent::__construct($connection, [], 'msg_container', '', false, false, null, null);
     }
 }

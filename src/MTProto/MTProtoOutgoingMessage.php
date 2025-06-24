@@ -191,12 +191,10 @@ class MTProtoOutgoingMessage extends MTProtoMessage
      */
     public function sent(): void
     {
-        if ($this->resultDeferred !== null) {
-            if ($this->unencrypted) {
-                $this->connection->unencrypted_new_outgoing[$this->getMsgId()] = $this;
-            } else {
-                $this->connection->new_outgoing[$this->getMsgId()] = $this;
-            }
+        if ($this->unencrypted) {
+            $this->connection->unencrypted_new_outgoing[$this->getMsgId()] = $this;
+        } else {
+            $this->connection->new_outgoing[$this->getMsgId()] = $this;
         }
         if ($this->sent === null && $this->isMethod) {
             $this->connection->inFlightGauge?->inc([
@@ -233,7 +231,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         }
         $shared = $this->connection->getShared();
         $settings = $shared->getSettings();
-        $global = $shared->getGenericSettings();
         $timeout = $settings->getTimeout();
         $this->checkTimer = EventLoop::delay(
             $timeout,

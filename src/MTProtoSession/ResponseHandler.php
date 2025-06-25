@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProtoSession;
 
+use Amp\CancelledException;
 use Amp\SignalException;
 use danog\BetterPrometheus\BetterHistogram;
 use danog\Loop\Loop;
@@ -197,7 +198,7 @@ trait ResponseHandler
         }
         /** @var MTProtoOutgoingMessage */
         $request = $arr[$requestId];
-        if ($request->getState() & MTProtoOutgoingMessage::STATE_REPLIED) {
+        if ($request->hasReply()) {
             $this->API->logger("Already got a response to $request, but there is another reply $message with message ID $requestId!", Logger::FATAL_ERROR);
             return;
         }
@@ -236,6 +237,13 @@ trait ResponseHandler
                     return;
             }
             $request->reply(static fn () => RPCErrorException::make('Received bad_msg_notification: ' . MTProto::BAD_MSG_ERROR_CODES[$response['error_code']], $response['error_code'], $request->constructor));
+            return;
+        }
+        if ($constructor === 'rpc_answer_dropped_running'
+            || $constructor === 'rpc_answer_unknown'
+            || $constructor === 'rpc_answer_dropped'
+        ) {
+            $request->reply(static fn () => new CancelledException(RPCErrorException::make("Request cancelled using $constructor", 0, $request->constructor)));
             return;
         }
 

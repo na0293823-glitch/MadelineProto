@@ -40,7 +40,12 @@ final class TLMethods
             'type' => $json_dict['type'],
             'params' => $json_dict['params'],
             'flags' => [],
-            'encrypted' => $scheme_type !== 'mtproto' || $json_dict['method'] === 'ping_delay_disconnect',
+            'encrypted' => $scheme_type !== 'mtproto'
+                || $json_dict['method'] === 'ping_delay_disconnect'
+                || $json_dict['method'] === 'ping'
+                || $json_dict['method'] === 'destroy_session'
+                || $json_dict['method'] === 'rpc_drop_answer'
+                || $json_dict['method'] === 'get_future_salts',
         ];
         if (preg_match('/^(v|V)ector\\<(.*)\\>$/', $json_dict['type'], $matches)) {
             $this->by_id[$json_dict['id']]['type'] = $matches[1] === 'v' ? 'vector' : 'Vector t';

@@ -45,19 +45,19 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     /**
      * The message was created.
      */
-    public const STATE_PENDING = 0;
+    private const STATE_PENDING = 0;
     /**
      * The message was sent.
      */
-    public const STATE_SENT = 1;
+    private const STATE_SENT = 1;
     /**
      * The message was acked.
      */
-    public const STATE_ACKED = 2;
+    private const STATE_ACKED = 2;
     /**
      * We got a reply to the message.
      */
-    public const STATE_REPLIED = self::STATE_ACKED | 4;
+    private const STATE_REPLIED = self::STATE_ACKED | 4;
 
     /**
      * State of message.
@@ -145,11 +145,13 @@ class MTProtoOutgoingMessage extends MTProtoMessage
 
             if ($self->hasMsgId()) {
                 $self->connection->API->logger("Cancelling $self...");
-                $self->connection->API->logger($self->connection->objectCallAsync(
-                    'rpc_drop_answer',
-                    ['req_msg_id' => $self->getMsgId()]
-                ));
-                $self->connection->flush(true);
+                try {
+                    $self->connection->API->logger($self->connection->methodCallAsyncRead(
+                        'rpc_drop_answer',
+                        ['req_msg_id' => $self->getMsgId()]
+                    ));
+                } catch (CancelledException) {
+                }
             }
         });
     }
@@ -312,15 +314,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         if (!$this->resultDeferred) {
             $this->reply(null);
         }
-    }
-    /**
-     * Get state of message.
-     *
-     * @return self::STATE_*
-     */
-    public function getState(): int
-    {
-        return $this->state;
     }
 
     /**

@@ -412,7 +412,7 @@ final class DataCenterConnection implements SimpleSubscriber
         $this->API->logger("Restoring {$count} messages to DC {$this->datacenter}");
         /** @var MTProtoOutgoingMessage */
         foreach ($backup as $message) {
-            if ($message instanceof Container || $message->getState() & MTProtoOutgoingMessage::STATE_REPLIED) {
+            if ($message instanceof Container || $message->hasReply()) {
                 continue;
             }
             if ($message->hasSeqno()) {

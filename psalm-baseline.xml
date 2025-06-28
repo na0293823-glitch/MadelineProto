@@ -272,8 +272,6 @@
     <PossiblyNullReference>
       <code><![CDATA[getInputClientProxy]]></code>
       <code><![CDATA[isHttp]]></code>
-      <code><![CDATA[refreshNextDisable]]></code>
-      <code><![CDATA[refreshNextEnable]]></code>
     </PossiblyNullReference>
     <PossiblyUndefinedArrayOffset>
       <code><![CDATA[$res['chat_id']]]></code>
@@ -3086,8 +3084,6 @@
       <code><![CDATA[$difference['dialog']['pts']]]></code>
       <code><![CDATA[$difference['intermediate_state']]]></code>
       <code><![CDATA[$difference['intermediate_state']]]></code>
-      <code><![CDATA[$difference['intermediate_state']]]></code>
-      <code><![CDATA[$difference['intermediate_state']['pts']]]></code>
       <code><![CDATA[$difference['intermediate_state']['qts']]]></code>
       <code><![CDATA[$difference['new_encrypted_messages']]]></code>
       <code><![CDATA[$difference['new_encrypted_messages']]]></code>
@@ -3194,8 +3190,6 @@
       <code><![CDATA[$this->API->authorization['user']['bot']]]></code>
     </PossiblyNullArrayAccess>
     <PossiblyUndefinedVariable>
-      <code><![CDATA[$difference]]></code>
-      <code><![CDATA[$difference]]></code>
       <code><![CDATA[$difference]]></code>
       <code><![CDATA[$difference]]></code>
       <code><![CDATA[$difference]]></code>
@@ -3544,6 +3538,9 @@
       <code><![CDATA[$this->sent]]></code>
       <code><![CDATA[$this->sent]]></code>
     </PossiblyNullOperand>
+    <PossiblyNullReference>
+      <code><![CDATA[refreshNextEnable]]></code>
+    </PossiblyNullReference>
     <PropertyNotSetInConstructor>
       <code><![CDATA[$next]]></code>
       <code><![CDATA[$prev]]></code>
@@ -4886,6 +4883,10 @@
       <code><![CDATA[$reference]]></code>
       <code><![CDATA[$size['location']]]></code>
     </MixedArgument>
+    <MixedArgumentTypeCoercion>
+      <code><![CDATA[$locationString]]></code>
+      <code><![CDATA[$locationString]]></code>
+    </MixedArgumentTypeCoercion>
     <MixedArrayAccess>
       <code><![CDATA[$attribute['_']]]></code>
       <code><![CDATA[$attribute['stickerset']]]></code>
@@ -4922,6 +4923,7 @@
     <MixedArrayAssignment>
       <code><![CDATA[$locationValue['origins'][$originType]]]></code>
       <code><![CDATA[$origin['peer']]]></code>
+      <code><![CDATA[$origin['specialMethodType']]]></code>
       <code><![CDATA[$size['location']]]></code>
       <code><![CDATA[$size['location']['dc_id']]]></code>
       <code><![CDATA[$this->cache[$key][$location]]]></code>
@@ -4986,18 +4988,13 @@
       <code><![CDATA[$tlTrace]]></code>
     </MixedOperand>
     <PossiblyNullArrayAccess>
+      <code><![CDATA[$data['reference']]]></code>
       <code><![CDATA[$this->API->authorization['user']]]></code>
       <code><![CDATA[$this->API->authorization['user']]]></code>
       <code><![CDATA[$this->API->authorization['user']['id']]]></code>
       <code><![CDATA[$this->API->authorization['user']['id']]]></code>
-      <code><![CDATA[$this->getDb($locationString)['origins']]]></code>
-      <code><![CDATA[$this->getDb($locationString)['reference']]]></code>
-      <code><![CDATA[$this->getDb($locationString)['reference']]]></code>
       <code><![CDATA[$this->getDb($locationString)['reference']]]></code>
     </PossiblyNullArrayAccess>
-    <PossiblyNullIterator>
-      <code><![CDATA[$this->getDb($locationString)['origins']]]></code>
-    </PossiblyNullIterator>
     <PossiblyUndefinedArrayOffset>
       <code><![CDATA[$frame['args']]]></code>
       <code><![CDATA[$frame['args']]]></code>

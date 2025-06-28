@@ -81,11 +81,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     private ?string $serializedBody = null;
 
     /**
-     * Whether we should refresh references upon serialization of this message.
-     */
-    private bool $refreshReferences = false;
-
-    /**
      * When was this message sent.
      */
     private ?int $sent = null;
@@ -114,7 +109,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         public readonly string $type,
         public readonly bool $isMethod,
         public readonly bool $unencrypted,
-        public readonly ?SpecialMethodType $specialMethodType,
+        public ?SpecialMethodType $specialMethodType,
         public readonly ?Cancellation $cancellation,
         public readonly ?string $subtype = null,
         /**
@@ -400,6 +395,8 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     public function refreshReferences(): Future
     {
         $this->serializedBody = null;
+        // To avoid endless loops
+        $this->specialMethodType = SpecialMethodType::FILEREF_RELATED;
 
         return async(function (): ?Closure {
             $this->connection->API->referenceDatabase->refreshNextEnable();

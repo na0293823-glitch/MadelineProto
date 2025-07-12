@@ -39,16 +39,16 @@ services:
   mariadb:
     image: mariadb
     environment:
-      MARIADB_DATABASE: MadelineProto
-      MARIADB_USER: MadelineProto
+      MARIADB_DATABASE: MadelineProtoDb
+      MARIADB_USER: MadelineProtoUser
       MARIADB_PASSWORD: test
       MARIADB_RANDOM_ROOT_PASSWORD: yes
 
   postgres:
     image: postgres
     environment:
-      POSTGRES_DB: MadelineProto
-      POSTGRES_USER: MadelineProto
+      POSTGRES_DB: MadelineProtoDb
+      POSTGRES_USER: MadelineProtoUser
       POSTGRES_PASSWORD: test
 
   redis:

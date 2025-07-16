@@ -37,8 +37,8 @@ final class TLContext
                 }
                 Assert::notFalse($constructor, "Constructor or method not found for path: " . json_encode($path));
             } else {
-                $constructor = $this->getConstructorsOfType($type)[$path[$idx]] ?? null;
-                Assert::notNull($foundType, "Could not find type {$path[$idx]} for $type");
+                $constructor = self::getConstructorsOfType($this->tl, $type)[$path[$idx]] ?? null;
+                Assert::notNull($constructor, "Could not find type {$path[$idx]} for $type, path: " . json_encode($path));
             }
             $idx++;
             $type = null;
@@ -48,19 +48,19 @@ final class TLContext
                 }
             }
             Assert::notNull($type, "Parameter not found in constructor or method: " . json_encode($path));
-        } while ($idx++ < count($path));
+        } while (++$idx < count($path));
 
         return $type;
     }
-    private function getConstructorsOfType(string $type): array
+    public static function getConstructorsOfType(TLInterface $tl, string $type): array
     {
         $constructors = [];
-        foreach ($this->tl->getConstructors()->by_id as $constructor) {
+        foreach ($tl->getConstructors()->by_id as $constructor) {
             if ($constructor['type'] === $type) {
                 $constructors[$constructor['predicate']] = true;
             }
         }
-        foreach ($this->tl->getMethods()->by_id as $method) {
+        foreach ($tl->getMethods()->by_id as $method) {
             if ($method['type'] === $type) {
                 $constructors[$method['method']] = true;
             }
@@ -233,7 +233,7 @@ final class ArrayOp implements Op
     public function build(TLContext $tl): array
     {
         $arr = [];
-        foreach ($this->value as $key => $value) {
+        foreach ($this->values as $key => $value) {
             $arr[$key] = $value->build($tl);
         }
         return [
@@ -339,19 +339,24 @@ final class ConstructorOp implements Op
 
 $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse, &$final, &$locations): void {
     if ($type === 'Message') {
-        $locations[$type] = new ConditionalEqOp(
-            new ExtractFromHereOp($type, 'peer_id', '_'),
-            new LiteralOp('peerUser'),
-            new CallOp('messages.getMessages', ['id' => new ArrayOp(
-                new ExtractFromHereOp($type, 'msg_id'),
-            )]),
-            new CallOp('channels.getMessages', [
-                'id' => new ArrayOp(
-                    new ExtractFromHereOp($type, 'msg_id'),
-                ),
-                'channel' => new GetInputPeerOp(new ExtractFromHereOp($type, 'peer_id')),
-            ]),
-        );
+        foreach (TLContext::getConstructorsOfType($TL, 'Message') as $constructor => $_) {
+            if ($constructor === 'messageEmpty') {
+                continue;
+            }
+            $locations[$constructor] = new ConditionalEqOp(
+                new ExtractFromHereOp($constructor, 'peer_id', '_'),
+                new LiteralOp('peerUser'),
+                new CallOp('messages.getMessages', ['id' => new ArrayOp(
+                    new ExtractFromHereOp($constructor, 'msg_id'),
+                )]),
+                new CallOp('channels.getMessages', [
+                    'id' => new ArrayOp(
+                        new ExtractFromHereOp($constructor, 'msg_id'),
+                    ),
+                    'channel' => new GetInputPeerOp(new ExtractFromHereOp($constructor, 'peer_id')),
+                ]),
+            );
+        }
         return;
     }
     if ($type === 'WebPage') {
@@ -372,7 +377,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
     if ($type === 'StoryItem') {
         $locations['storyItem'] = new CallOp('stories.getStoriesByID', [
             'id' => new ArrayOp(new ExtractFromHereOp('storyItem', 'id')),
-            'peer' => new GetInputPeerOp(new ExtractFromHereOp('storyItem', 'peer_id')),
+            'peer' => new GetInputPeerOp(new ExtractFromHereOp('storyItem', 'from_id')),
         ]);
         return;
     }
@@ -401,16 +406,16 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
             'messages.getExtendedMedia',
             [
                 'id' => new ArrayOp(new ExtractFromHereOp('updateMessageExtendedMedia', 'msg_id')),
-                'peer' => new GetInputPeerOp(new ExtractFromHereOp('updateMessageExtendedMedia', 'peer_id')),
+                'peer' => new GetInputPeerOp(new ExtractFromHereOp('updateMessageExtendedMedia', 'peer')),
             ]
         );
         return;
     }
     if ($type === 'UserFull') {
-        $locations[$type] = new CallOp(
+        $locations['userFull'] = new CallOp(
             'users.getFullUser',
             [
-                'id' => new GetInputUserOp(new ExtractFromHereOp($type, 'user_id')),
+                'id' => new GetInputUserOp(new ExtractFromHereOp('userFull', 'id')),
             ]
         );
         return;
@@ -499,7 +504,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                     [
                         'id' => new ExtractFromHereOp('stickerSet', 'id'),
                         'access_hash' => new ExtractFromHereOp('stickerSet', 'access_hash'),
-                        'hash' => 0,
+                        'hash' => new LiteralOp(0),
                     ],
                 ),
             ]
@@ -515,7 +520,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                     [
                         'id' => new ExtractFromHereOp('StickerSetCovered', 'set', 'stickerSet', 'id'),
                         'access_hash' => new ExtractFromHereOp('StickerSetCovered', 'set', 'stickerSet', 'access_hash'),
-                        'hash' => 0,
+                        'hash' => new LiteralOp(0),
                     ],
                 ),
             ]
@@ -531,7 +536,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                     [
                         'id' => new ExtractFromHereOp('messages.stickerSet', 'set', 'stickerSet', 'id'),
                         'access_hash' => new ExtractFromHereOp('messages.stickerSet', 'set', 'stickerSet', 'access_hash'),
-                        'hash' => 0,
+                        'hash' => new LiteralOp(0),
                     ],
                 ),
             ]
@@ -539,12 +544,12 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
         return;
     }
     if ($type === 'messages.SavedGifs') {
-        $locations['messages.savedGifs'] = new CallOp('messages.getSavedGifs', ['hash' => 0]);
+        $locations['messages.savedGifs'] = new CallOp('messages.getSavedGifs', ['hash' => new LiteralOp(0)]);
         return;
     }
     if ($type === 'account.SavedRingtones' || $type === 'account.SavedRingtone') {
         foreach (['account.savedRingtones', 'account.savedRingtoneConverted', 'account.uploadRingtone'] as $c) {
-            $locations[$c] = new CallOp('account.getSavedRingtones', ['hash' => 0]);
+            $locations[$c] = new CallOp('account.getSavedRingtones', ['hash' => new LiteralOp(0)]);
         }
         return;
     }
@@ -558,14 +563,14 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
     if ($type === 'messages.AvailableEffects') {
         $locations['messages.availableEffects'] = new CallOp(
             'messages.getAvailableEffects',
-            ['hash' => 0],
+            ['hash' => new LiteralOp(0)],
         );
         return;
     }
     if ($type === 'messages.AvailableReactions') {
         $locations['messages.availableReactions'] = new CallOp(
             'messages.getAvailableReactions',
-            ['hash' => 0],
+            ['hash' => new LiteralOp(0)],
         );
         return;
     }
@@ -655,5 +660,6 @@ if ($final) {
 }
 
 foreach ($locations as $constructor => $op) {
-    $op = $op->build(new TLContext($TL, $constructor));
+    var_dump("Processing $constructor");
+    var_dump($op = $op->build(new TLContext($TL, $constructor)));
 }

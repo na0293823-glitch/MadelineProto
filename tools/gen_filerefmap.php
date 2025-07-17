@@ -104,13 +104,13 @@ final class TLContext
         if ($methods) {
             foreach ($tl->getMethods()->by_id as $method) {
                 if ($method['type'] === $type) {
-                    $constructors[$method['method']] = false;
+                    $constructors[$method['method']] = $method;
                 }
             }
         } else {
             foreach ($tl->getConstructors()->by_id as $constructor) {
                 if ($constructor['type'] === $type) {
-                    $constructors[$constructor['predicate']] = true;
+                    $constructors[$constructor['predicate']] = $constructor;
                 }
             }
         }
@@ -127,22 +127,39 @@ interface Op
     public function build(TLContext $tl): array;
 
     public function getType(TLContext $tl): string;
+
+    public function hasBackreference(): bool;
+
+    public function normalize(array $stack): ?Op;
 }
 
-interface SimpleExtractorOp extends Op {
+interface SimpleExtractorOp extends Op
+{
 }
 
-interface ExtractorOrLiteralOp extends SimpleExtractorOp {
+interface ExtractorOrLiteralOp extends SimpleExtractorOp
+{
 }
 
 interface ActionOp extends Op
 {
 }
 
-final class Noop implements ActionOp {
+final class Noop implements ActionOp
+{
     public function getType(TLContext $tl): string
     {
         return '';
+    }
+
+    public function hasBackreference(): bool
+    {
+        return false;
+    }
+
+    public function normalize(array $stack): ?Op
+    {
+        return $this;
     }
 
     public function build(TLContext $tl): array
@@ -156,7 +173,15 @@ final class CopyMethodCallOp implements ActionOp
     public function __construct(private readonly string $method)
     {
     }
+    public function hasBackreference(): bool
+    {
+        return false;
+    }
 
+    public function normalize(array $stack): ?Op
+    {
+        return $this;
+    }
     public function getType(TLContext $tl): string
     {
         return $tl->tl->getMethods()->findByMethod($this->method)['type'];
@@ -164,6 +189,7 @@ final class CopyMethodCallOp implements ActionOp
 
     public function build(TLContext $tl): array
     {
+        Assert::eq($tl->position, $this->method, "Current constructor {$tl->position} does not match expected method {$this->method}");
         $this->getType($tl); // Validate type
         return ['op' => 'copyMethodCall', 'method' => $this->method];
     }
@@ -175,6 +201,14 @@ final class ThemeFormatOp implements ExtractorOrLiteralOp
     {
     }
 
+    public function hasBackreference(): bool
+    {
+        return false;
+    }
+    public function normalize(array $stack): ?Op
+    {
+        return $this;
+    }
     public function getType(TLContext $tl): string
     {
         return 'string';
@@ -199,6 +233,27 @@ final class ExtractFromHereOp implements SimpleExtractorOp
         if ($ifEmptyFlag !== null) {
             Assert::true($isFlag);
         }
+    }
+
+    public function hasBackreference(): bool
+    {
+        if ($this->ifEmptyFlag?->hasBackreference()) {
+            return true;
+        }
+        return false;
+    }
+
+    public function normalize(array $stack): ?Op
+    {
+        $if = $this->ifEmptyFlag?->normalize($stack);
+        if ($if === null && $this->ifEmptyFlag !== null) {
+            return null;
+        }
+        return new self(
+            [...$stack, ...$this->path],
+            $this->isFlag,
+            $if
+        );
     }
 
     public function getType(TLContext $tl): string
@@ -241,6 +296,27 @@ final class ExtractFromMethodCallOp implements SimpleExtractorOp
         }
     }
 
+    public function hasBackreference(): bool
+    {
+        return true;
+    }
+
+    public function normalize(array $stack): ?Op
+    {
+        if ($stack[0] !== $this->path[0]) {
+            return null;
+        }
+        $if = $this->ifEmptyFlag?->normalize($stack);
+        if ($if === null && $this->ifEmptyFlag !== null) {
+            return null;
+        }
+        return new ExtractFromHereOp(
+            $this->path,
+            $this->isFlag,
+            $if
+        );
+    }
+
     public function getType(TLContext $tl): string
     {
         $t = $tl->getTypeAtPosition($this);
@@ -270,20 +346,40 @@ final class ExtractFromMethodCallOp implements SimpleExtractorOp
 
 final class ExtractStickerSetFromDocumentAttributesOp implements SimpleExtractorOp
 {
-    public function __construct() {
+    public function __construct(
+        private readonly SimpleExtractorOp $path,
+    )
+    {
     }
 
+    public function hasBackreference(): bool
+    {
+        return $this->path->hasBackreference();
+    }
+    
+    public function normalize(array $stack): ?Op
+    {
+        $path = $this->path->normalize($stack);
+        if ($path === null) {
+            return null;
+        }
+        if ($path !== $this->path) {
+            return new self($path);
+        }
+        return $this;
+    }
+    
     public function getType(TLContext $tl): string
     {
-        Assert::eq($tl->position, 'document');
         return 'InputStickerSet';
     }
 
     public function build(TLContext $tl): array
     {
-        $this->getType($tl);
+        Assert::eq($this->path->getType($tl), 'Vector<DocumentAttribute>');
         return [
             'op' => 'extractStickerSetFromDocumentAttributes',
+            'from' => $this->path->build($tl),
         ];
     }
 }
@@ -294,6 +390,21 @@ final class GetInputPeerOp implements ExtractorOrLiteralOp
     {
     }
 
+    public function hasBackreference(): bool
+    {
+        return $this->path->hasBackreference();
+    }
+    public function normalize(array $stack): ?Op
+    {
+        $path = $this->path->normalize($stack);
+        if ($path === null) {
+            return null;
+        }
+        if ($path !== $this->path) {
+            return new self($path);
+        }
+        return $this;
+    }
     public function getType(TLContext $tl): string
     {
         return 'InputPeer';
@@ -318,6 +429,21 @@ final class GetInputUserOp implements ExtractorOrLiteralOp
     {
     }
 
+    public function normalize(array $stack): ?Op
+    {
+        $path = $this->path->normalize($stack);
+        if ($path === null) {
+            return null;
+        }
+        if ($path !== $this->path) {
+            return new self($path);
+        }
+        return $this;
+    }
+    public function hasBackreference(): bool
+    {
+        return $this->path->hasBackreference();
+    }
     public function getType(TLContext $tl): string
     {
         return 'InputUser';
@@ -348,6 +474,21 @@ final class GetInputChannelOp implements ExtractorOrLiteralOp
     {
     }
 
+    public function normalize(array $stack): ?Op
+    {
+        $path = $this->path->normalize($stack);
+        if ($path === null) {
+            return null;
+        }
+        if ($path !== $this->path) {
+            return new self($path);
+        }
+        return $this;
+    }
+    public function hasBackreference(): bool
+    {
+        return $this->path->hasBackreference();
+    }
     public function getType(TLContext $tl): string
     {
         return 'InputChannel';
@@ -381,6 +522,34 @@ final class ArrayOp implements ExtractorOrLiteralOp
     {
         $this->values = $values;
     }
+    public function hasBackreference(): bool
+    {
+        foreach ($this->values as $value) {
+            if ($value->hasBackreference()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public function normalize(array $stack): ?Op
+    {
+        $final = [];
+        $isDifferent = false;   
+        foreach ($this->values as $value) {
+            $normalized = $value->normalize($stack);
+            if ($normalized === null) {
+                return null;
+            }
+            if ($normalized !== $value) {
+                $isDifferent = true;
+            }   
+            $final[] = $normalized;
+        }
+        if ($isDifferent) {
+            return new self(...$final);
+        }
+        return $this;
+    }
 
     public function getType(TLContext $tl): string
     {
@@ -407,6 +576,14 @@ final class LiteralOp implements ExtractorOrLiteralOp
         Assert::inArray($type, ['int', 'long', 'string', 'bool', 'float', '#'], "Invalid type '$type' for LiteralOp");
     }
 
+    public function hasBackreference(): bool
+    {
+        return false;
+    }
+    public function normalize(array $stack): ?Op
+    {
+        return $this;
+    }
     public function getType(TLContext $tl): string
     {
         return $this->type;
@@ -429,7 +606,25 @@ final class GetMessageOp implements ExtractorOrLiteralOp
         private readonly Op $id,
     ) {
     }
-
+    public function normalize(array $stack): ?Op
+    {
+        $peer = $this->peer->normalize($stack);
+        if ($peer === null) {
+            return null;
+        }
+        $id = $this->id->normalize($stack);
+        if ($id === null) {
+            return null;
+        }
+        if ($peer !== $this->peer || $id !== $this->id) {
+            return new self($peer, $id);
+        }
+        return $this;
+    }
+    public function hasBackreference(): bool
+    {
+        return $this->peer->hasBackreference() || $this->id->hasBackreference();
+    }
     public function getType(TLContext $tl): string
     {
         return 'messages.Messages';
@@ -455,7 +650,34 @@ final class CallOp implements ActionOp
         private readonly array $args
     ) {
     }
-
+    public function hasBackreference(): bool
+    {
+        foreach ($this->args as $arg) {
+            if ($arg->hasBackreference()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public function normalize(array $stack): ?Op
+    {
+        $final = [];
+        $isDifferent = false;
+        foreach ($this->args as $from => $to) {
+            $normalized = $to->normalize($stack);
+            if ($normalized === null) {
+                return null;
+            }
+            if ($normalized !== $to) {
+                $isDifferent = true;
+            }
+            $final[$from] = $normalized;
+        }
+        if ($isDifferent) {
+            return new self($this->method, $final);
+        }
+        return $this;
+    }
     public function getType(TLContext $tl): string
     {
         return $tl->tl->getMethods()->findByMethod($this->method)['type'];
@@ -496,6 +718,35 @@ final class ConstructorOp implements ExtractorOrLiteralOp
     ) {
     }
 
+    public function normalize(array $stack): ?Op
+    {
+        $final = [];
+        $isDifferent = false;
+        foreach ($this->args as $from => $to) {
+            $normalized = $to->normalize($stack);
+            if ($normalized === null) {
+                return null;
+            }
+            if ($normalized !== $to) {
+                $isDifferent = true;
+            }
+            $final[$from] = $normalized;
+        }
+        if ($isDifferent) {
+            return new self($this->constructor, $final);
+        }
+        return $this;
+    }
+    public function hasBackreference(): bool
+    {
+        foreach ($this->args as $arg) {
+            if ($arg->hasBackreference()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function getType(TLContext $tl): string
     {
         return $tl->tl->getConstructors()->findByPredicate($this->constructor)['type'];
@@ -516,316 +767,223 @@ final class ConstructorOp implements ExtractorOrLiteralOp
     }
 }
 
-$populateFileRefContext = static function (string $type) use ($TL, &$locations): bool {
-    if ($type === 'Message') {
-        foreach (TLContext::getConstructorsOfType($TL, 'Message', false) as $constructor => $_) {
-            if ($constructor === 'messageEmpty') {
-                continue;
-            }
-            $locations[$constructor][] = new GetMessageOp(
-                new ExtractFromHereOp([$constructor, 'peer_id']),
-                new ExtractFromHereOp([$constructor, 'id']),
-            );
-        }
-        $locations['messageEmpty'][] = new Noop;
-        return true;
+foreach (TLContext::getConstructorsOfType($TL, 'Message', false) as $constructor => $_) {
+    if ($constructor === 'messageEmpty') {
+        continue;
     }
-    if ($type === 'WebPage') {
-        $locations['webPage'][] = CallOp::simple('messages.getWebPage', 'webPage', ['url' => 'url', 'hash' => new LiteralOp('int', 0)]);
-        return true;
-    }
-    if ($type === 'BotApp') {
-        $locations['botApp'][] = CallOp::simple('messages.getBotApp', 'botApp', [
-            'app' => new ConstructorOp(
-                'inputBotAppID',
+    $locations[$constructor][] = new GetMessageOp(
+        new ExtractFromHereOp([$constructor, 'peer_id']),
+        new ExtractFromHereOp([$constructor, 'id']),
+    );
+}
+$locations['webPage'][] = CallOp::simple('messages.getWebPage', 'webPage', ['url' => 'url', 'hash' => new LiteralOp('int', 0)]);
+$locations['botApp'][] = CallOp::simple('messages.getBotApp', 'botApp', [
+    'app' => new ConstructorOp(
+        'inputBotAppID',
+        [
+            'id' => new ExtractFromHereOp(['botApp', 'id']),
+            'access_hash' => new ExtractFromHereOp(['botApp', 'access_hash']),
+        ]
+    ),
+    'hash' => new LiteralOp('long', 0),
+]);
+$locations['botInfo'][] = new CallOp(
+    'users.getFullUser',
+    ['id' => new GetInputUserOp(new ExtractFromHereOp(['botInfo', 'user_id'], true))],
+);
+$locations['storyItem'][] = new CallOp('stories.getStoriesByID', [
+    'id' => new ArrayOp(new ExtractFromHereOp(['storyItem', 'id'])),
+    'peer' => new GetInputPeerOp(new ExtractFromHereOp(['storyItem', 'from_id'], true)),
+]);
+$locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.getSponsoredMessages');
+$locations['channelAdminLogEvent'][] = new CallOp(
+    'channels.getAdminLog',
+    [
+        'channel' => new GetInputChannelOp(new ExtractFromMethodCallOp(['channels.getAdminLog', 'channel'])),
+        'max_id' => new ExtractFromHereOp(['channelAdminLogEvent', 'id']),
+        'min_id' => new ExtractFromHereOp(['channelAdminLogEvent', 'id']),
+        'limit' => new LiteralOp('int', 1),
+        'q' => new LiteralOp('string', ''),
+        'flags' => new LiteralOp('#', 0),
+    ]
+);
+$locations['bots.getPreviewInfo'][] = new CopyMethodCallOp('bots.getPreviewInfo');
+$locations['updateMessageExtendedMedia'][] = new CallOp(
+    'messages.getExtendedMedia',
+    [
+        'id' => new ArrayOp(new ExtractFromHereOp(['updateMessageExtendedMedia', 'msg_id'])),
+        'peer' => new GetInputPeerOp(new ExtractFromHereOp(['updateMessageExtendedMedia', 'peer'])),
+    ]
+);
+$locations['userFull'][] = new CallOp(
+    'users.getFullUser',
+    [
+        'id' => new GetInputUserOp(new ExtractFromHereOp(['userFull', 'id'])),
+    ]
+);
+$locations['chatFull'][] = new CallOp(
+    'messages.getFullChat',
+    [
+        'chat_id' => new ExtractFromHereOp(['chatFull', 'id']),
+    ]
+);
+$locations['channelFull'][] = new CallOp(
+    'channels.getFullChannel',
+    [
+        'channel' => new GetInputChannelOp(new ExtractFromHereOp(['channelFull', 'id'])),
+    ]
+);
+$locations['help.getPremiumPromo'][] = new CopyMethodCallOp('help.getPremiumPromo');
+foreach (TLContext::getConstructorsOfType($TL, 'StarsTransaction', false) as $method => $_) {
+    $locations[$constructor][] = new CallOp(
+        'payments.getStarsTransactionByID',
+        [
+            'peer' => new ExtractFromMethodCallOp([$constructor, 'peer']),
+            'id' => new ConstructorOp(
+                'inputStarsTransaction',
                 [
-                    'id' => new ExtractFromHereOp(['botApp', 'id']),
-                    'access_hash' => new ExtractFromHereOp(['botApp', 'access_hash']),
+                    'id' => new ExtractFromHereOp([$constructor, 'id']),
+                    'refund' => new ExtractFromHereOp([$constructor, 'refund']),
                 ]
             ),
-            'hash' => new LiteralOp('long', 0),
-        ]);
-        return true;
-    }
-    if ($type === 'BotInfo') {
-        $locations['botInfo'][] = new CallOp(
-            'users.getFullUser',
-            ['id' => new GetInputUserOp(new ExtractFromHereOp(['botInfo', 'user_id'], true))],
-        );
-        return true;
-    }
-    if ($type === 'StoryItem') {
-        $locations['storyItem'][] = new CallOp('stories.getStoriesByID', [
-            'id' => new ArrayOp(new ExtractFromHereOp(['storyItem', 'id'])),
-            'peer' => new GetInputPeerOp(new ExtractFromHereOp(['storyItem', 'from_id'], true)),
-        ]);
-        return true;
-    }
-    if ($type === 'messages.SponsoredMessages') {
-        $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.getSponsoredMessages');
-        return true;
-    }
-    if ($type === 'ChannelAdminLogEvent') {
-        $locations['channelAdminLogEvent'][] = new CallOp(
-            'channels.getAdminLog',
+        ]
+    );
+}
+$locations['attachMenuBot'][] = new CallOp(
+    'messages.getAttachMenuBot',
+    ['bot' => new GetInputUserOp(new ExtractFromHereOp(['attachMenuBot', 'bot_id']))]
+);
+$locations['theme'][] = new CallOp(
+    'account.getTheme',
+    [
+        'theme' => new ConstructorOp(
+            'inputTheme',
             [
-                'channel' => new GetInputChannelOp(new ExtractFromMethodCallOp(['channels.getAdminLog', 'channel'])),
-                'max_id' => new ExtractFromHereOp(['channelAdminLogEvent', 'id']),
-                'min_id' => new ExtractFromHereOp(['channelAdminLogEvent', 'id']),
-                'limit' => new LiteralOp('int', 1),
-                'q' => new LiteralOp('string', ''),
-                'flags' => new LiteralOp('#', 0),
+                'id' => new ExtractFromHereOp(['theme', 'id']),
+                'access_hash' => new ExtractFromHereOp(['theme', 'access_hash']),
             ]
-        );
-        return true;
-    }
-    if ($type === 'bots.PreviewInfo') {
-        $locations['bots.getPreviewInfo'][] = new CopyMethodCallOp('messages.getSponsoredMessages');
-        return true;
-    }
-    if ($type === 'MessageExtendedMedia') {
-        $locations['updateMessageExtendedMedia'][] = new CallOp(
-            'messages.getExtendedMedia',
+        ),
+        'format' => new ThemeFormatOp(),
+    ]
+);
+$locations['wallPaper'][] = new CallOp(
+    'account.getWallPaper',
+    [
+        'wallpaper' => new ConstructorOp(
+            'inputWallPaper',
             [
-                'id' => new ArrayOp(new ExtractFromHereOp(['updateMessageExtendedMedia', 'msg_id'])),
-                'peer' => new GetInputPeerOp(new ExtractFromHereOp(['updateMessageExtendedMedia', 'peer'])),
+                'id' => new ExtractFromHereOp(['wallPaper', 'id']),
+                'access_hash' => new ExtractFromHereOp(['wallPaper', 'access_hash']),
             ]
-        );
-        return true;
-    }
-    if ($type === 'UserFull') {
-        $locations['userFull'][] = new CallOp(
-            'users.getFullUser',
-            [
-                'id' => new GetInputUserOp(new ExtractFromHereOp(['userFull', 'id'])),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'ChatFull') {
-        $locations['chatFull'][] = new CallOp(
-            'messages.getFullChat',
-            [
-                'chat_id' => new ExtractFromHereOp(['chatFull', 'id']),
-            ]
-        );
-        $locations['channelFull'][] = new CallOp(
-            'channels.getFullChannel',
-            [
-                'channel' => new GetInputChannelOp(new ExtractFromHereOp(['channelFull', 'id'])),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'help.PremiumPromo') {
-        $locations['help.getPremiumPromo'][] = new CopyMethodCallOp('messages.getSponsoredMessages');
-        return true;
-    }
-    if ($type === 'StarsTransaction') {
-        foreach (TLContext::getConstructorsOfType($TL, 'StarsTransaction', false) as $constructor => $isConstructor) {
-            if ($isConstructor) {
-                continue;
-            }
-            $locations[$constructor][] = new CallOp(
-                'payments.getStarsTransactionByID',
-                [
-                    'peer' => new ExtractFromMethodCallOp([$constructor, 'peer']),
-                    'id' => new ConstructorOp(
-                        'inputStarsTransaction',
-                        [
-                            'id' => new ExtractFromHereOp([$constructor, 'id']),
-                            'refund' => new ExtractFromHereOp([$constructor, 'refund']),
-                        ]
-                    ),
-                ]
-            );
-        }
-        return true;
-    }
-    if ($type === 'AttachMenuBot') {
-        $locations['attachMenuBot'][] = new CallOp(
-            'messages.getAttachMenuBot',
-            ['bot' => new GetInputUserOp(new ExtractFromHereOp(['attachMenuBot', 'bot_id']))]
-        );
-        return true;
-    }
-    if ($type === 'Theme') {
-        $locations['theme'][] = new CallOp(
-            'account.getTheme',
-            [
-                'theme' => new ConstructorOp(
-                    'inputTheme',
-                    [
-                        'id' => new ExtractFromHereOp(['theme', 'id']),
-                        'access_hash' => new ExtractFromHereOp(['theme', 'access_hash']),
-                    ]
-                ),
-                'format' => new ThemeFormatOp(),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'WallPaper') {
-        $locations['wallPaper'][] = new CallOp(
-            'account.getWallPaper',
-            [
-                'wallpaper' => new ConstructorOp(
-                    'inputWallPaper',
-                    [
-                        'id' => new ExtractFromHereOp(['wallPaper', 'id']),
-                        'access_hash' => new ExtractFromHereOp(['wallPaper', 'access_hash']),
-                    ]
-                ),
-            ]
-        );
-        return true;
-    }
+        ),
+    ]
+);
 
-    // Multiple variations to handle references from covers in StickerSetCovered and messages.StickerSet
-    if ($type === 'StickerSet') {
-        $locations['stickerSet'][] = new CallOp(
-            'messages.getStickerSet',
+// Multiple variations to handle references from covers in StickerSetCovered and messages.StickerSet
+$locations['stickerSet'][] = new CallOp(
+    'messages.getStickerSet',
+    [
+        'stickerset' => new ConstructorOp(
+            'inputStickerSetID',
             [
-                'stickerset' => new ConstructorOp(
-                    'inputStickerSetID',
-                    [
-                        'id' => new ExtractFromHereOp(['stickerSet', 'id']),
-                        'access_hash' => new ExtractFromHereOp(['stickerSet', 'access_hash']),
-                    ],
-                ),
-                'hash' => new LiteralOp('int', 0),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'StickerSetCovered') {
-        foreach (['stickerSetMultiCovered', 'stickerSetFullCovered'] as $c) {
-            $locations[$c][] = new CallOp(
-                'messages.getStickerSet',
+                'id' => new ExtractFromHereOp(['stickerSet', 'id']),
+                'access_hash' => new ExtractFromHereOp(['stickerSet', 'access_hash']),
+            ],
+        ),
+        'hash' => new LiteralOp('int', 0),
+    ]
+);
+foreach (['stickerSetMultiCovered', 'stickerSetFullCovered'] as $c) {
+    $locations[$c][] = new CallOp(
+        'messages.getStickerSet',
+        [
+            'stickerset' => new ConstructorOp(
+                'inputStickerSetID',
                 [
-                    'stickerset' => new ConstructorOp(
-                        'inputStickerSetID',
-                        [
-                            'id' => new ExtractFromHereOp([$c, 'set', 'stickerSet', 'id']),
-                            'access_hash' => new ExtractFromHereOp([$c, 'set', 'stickerSet', 'access_hash']),
-                        ],
-                    ),
-                    'hash' => new LiteralOp('int', 0),
-                ]
-            );
-        }
-        return true;
-    }
-    if ($type === 'messages.StickerSet') {
-        $locations['messages.stickerSet'][] = new CallOp(
-            'messages.getStickerSet',
+                    'id' => new ExtractFromHereOp([$c, 'set', 'stickerSet', 'id']),
+                    'access_hash' => new ExtractFromHereOp([$c, 'set', 'stickerSet', 'access_hash']),
+                ],
+            ),
+            'hash' => new LiteralOp('int', 0),
+        ]
+    );
+}
+$locations['messages.stickerSet'][] = new CallOp(
+    'messages.getStickerSet',
+    [
+        'stickerset' => new ConstructorOp(
+            'inputStickerSetID',
             [
-                'stickerset' => new ConstructorOp(
-                    'inputStickerSetID',
-                    [
-                        'id' => new ExtractFromHereOp(['messages.stickerSet', 'set', 'stickerSet', 'id']),
-                        'access_hash' => new ExtractFromHereOp(['messages.stickerSet', 'set', 'stickerSet', 'access_hash']),
-                    ],
-                ),
-                'hash' => new LiteralOp('int', 0),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'messages.SavedGifs') {
-        $locations['messages.savedGifs'][] = new CallOp('messages.getSavedGifs', ['hash' => new LiteralOp('long', 0)]);
-        return true;
-    }
-    if ($type === 'account.SavedRingtones' || $type === 'account.SavedRingtone') {
-        foreach (['account.savedRingtones', 'account.savedRingtoneConverted', 'account.uploadRingtone'] as $c) {
-            $locations[$c][] = new CallOp('account.getSavedRingtones', ['hash' => new LiteralOp('long', 0)]);
-        }
-        return true;
-    }
-    if ($type === 'RecentMeUrl') {
-        $locations['recentMeUrlChatInvite'][] = new CallOp(
-            'messages.checkChatInvite',
-            ['hash' => new ExtractFromHereOp(['recentMeUrlChatInvite', 'url'])],
-        );
-        return true;
-    }
-    if ($type === 'messages.AvailableEffects') {
-        $locations['messages.availableEffects'][] = new CallOp(
-            'messages.getAvailableEffects',
-            ['hash' => new LiteralOp('int', 0)],
-        );
-        return true;
-    }
-    if ($type === 'messages.AvailableReactions') {
-        $locations['messages.availableReactions'][] = new CallOp(
-            'messages.getAvailableReactions',
-            ['hash' => new LiteralOp('int', 0)],
-        );
-        return true;
-    }
+                'id' => new ExtractFromHereOp(['messages.stickerSet', 'set', 'stickerSet', 'id']),
+                'access_hash' => new ExtractFromHereOp(['messages.stickerSet', 'set', 'stickerSet', 'access_hash']),
+            ],
+        ),
+        'hash' => new LiteralOp('int', 0),
+    ]
+);
+$locations['messages.savedGifs'][] = new CallOp('messages.getSavedGifs', ['hash' => new LiteralOp('long', 0)]);
+foreach (['account.savedRingtones', 'account.savedRingtoneConverted', 'account.uploadRingtone'] as $c) {
+    $locations[$c][] = new CallOp('account.getSavedRingtones', ['hash' => new LiteralOp('long', 0)]);
+}
+$locations['recentMeUrlChatInvite'][] = new CallOp(
+    'messages.checkChatInvite',
+    ['hash' => new ExtractFromHereOp(['recentMeUrlChatInvite', 'url'])],
+);
+$locations['messages.availableEffects'][] = new CallOp(
+    'messages.getAvailableEffects',
+    ['hash' => new LiteralOp('int', 0)],
+);
+$locations['messages.availableReactions'][] = new CallOp(
+    'messages.getAvailableReactions',
+    ['hash' => new LiteralOp('int', 0)],
+);
 
-    if ($type === 'payments.ResaleStarGifts' || $type === 'payments.StarGiftUpgradePreview' || $type === 'StarGift') {
-        // Ignore for now
-        return true;
-    }
-    if ($type === 'BotInlineResult') {
-        // Ignore ephemeral inline results
-        return true;
-    }
-    if ($type === 'photos.Photos') {
-        $locations['photo'][] = new CallOp(
-            'photos.getUserPhotos',
-            [
-                'user_id' => new ExtractFromMethodCallOp(['photos.getUserPhotos', 'user_id']),
-                'offset' => new LiteralOp('int', -1),
-                'max_id' => new ExtractFromHereOp(['photo', 'id']),
-                'limit' => new LiteralOp('int', 1),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'photos.Photo') {
-        foreach (['photos.updateProfilePhoto', 'photos.updateProfilePhoto'] as $method) {
-            $locations['photo'][] = new CallOp(
-                'photos.getUserPhotos',
-                [
-                    'user_id' => new ExtractFromMethodCallOp(
-                        [$method, 'bot'],
-                        true,
-                        new ConstructorOp(
-                            'inputUserSelf',
-                            []
-                        )
-                    ),
-                    'offset' => new LiteralOp('int', -1),
-                    'max_id' => new ExtractFromHereOp(['photo', 'id']),
-                    'limit' => new LiteralOp('int', 1),
-                ]
-            );
-        }
-        return true;
-    }
-    if (in_array($type, [
-        // Extract from document attributes
-        'messages.FoundStickers',
-        'messages.Stickers',
-        'messages.RecentStickers',
-        'messages.FavedStickers',
-    ], true)) {
-        $locations['document'][] = new CallOp(
-            'messages.getStickerSet',
-            [
-                'stickerset' => new ExtractStickerSetFromDocumentAttributesOp(),
-                'hash' => new LiteralOp('int', 0),
-            ]
-        );
-        return true;
-    }
-    if ($type === 'Document') {
-        $locations['messages.getDocumentByHash'] = new CopyMethodCallOp('messages.getDocumentByHash');
+$locations['photo'][] = new CallOp(
+    'photos.getUserPhotos',
+    [
+        'user_id' => new ExtractFromMethodCallOp(['photos.getUserPhotos', 'user_id']),
+        'offset' => new LiteralOp('int', -1),
+        'max_id' => new ExtractFromHereOp(['photo', 'id']),
+        'limit' => new LiteralOp('int', 1),
+    ]
+);
+foreach (['photos.updateProfilePhoto', 'photos.updateProfilePhoto'] as $method) {
+    $locations['photo'][] = new CallOp(
+        'photos.getUserPhotos',
+        [
+            'user_id' => new ExtractFromMethodCallOp(
+                [$method, 'bot'],
+                true,
+                new ConstructorOp(
+                    'inputUserSelf',
+                    []
+                )
+            ),
+            'offset' => new LiteralOp('int', -1),
+            'max_id' => new ExtractFromHereOp(['photo', 'id']),
+            'limit' => new LiteralOp('int', 1),
+        ]
+    );
+}
 
-$recurse = static function (Closure $populator, Closure $onStackEnd, string $type, array $stack = []) use ($TL, &$recurse): void {
-    if ($populator($type)) {
+$locations['document'][] = new CallOp(
+    'messages.getStickerSet',
+    [
+        'stickerset' => new ExtractStickerSetFromDocumentAttributesOp(new ExtractFromHereOp(['document', 'attributes'])),
+        'hash' => new LiteralOp('int', 0),
+    ]
+);
+$locations['messages.getDocumentByHash'][] = new CopyMethodCallOp('messages.getDocumentByHash');
+
+// Ignore these for now
+foreach (['payments.ResaleStarGifts', 'payments.StarGiftUpgradePreview', 'StarGift'] as $type) {
+    foreach (TLContext::getConstructorsOfType($TL, $type, false) as $constructor => $_) {
+        $locations[$constructor][] = new Noop();
+    }
+}
+
+$recurse = static function (Closure $earlyReturn, Closure $onStackEnd, string $type, array $stack = []) use ($TL, &$recurse): void {
+    if ($earlyReturn($type)) {
         return;
     }
     $pos = count($stack);
@@ -835,7 +993,7 @@ $recurse = static function (Closure $populator, Closure $onStackEnd, string $typ
         foreach ($constructor['params'] as $param) {
             if ($param['type'] === $type && !in_array($name, $stack, true)) {
                 $stack[$pos] = $name;
-                $recurse($populator, $onStackEnd, $constructor['type'], $stack);
+                $recurse($earlyReturn, $onStackEnd, $constructor['type'], $stack);
                 $found = true;
             }
             if (isset($param['subtype'])
@@ -843,14 +1001,14 @@ $recurse = static function (Closure $populator, Closure $onStackEnd, string $typ
                 && !in_array($name, $stack, true)
             ) {
                 $stack[$pos] = $name;
-                $recurse($populator, $onStackEnd, $constructor['type'], $stack);
+                $recurse($earlyReturn, $onStackEnd, $constructor['type'], $stack);
                 $found = true;
             }
         }
     }
     unset($stack[$pos]);
-    if (!$found 
-        || $type === 'Update' 
+    if (!$found
+        || $type === 'Update'
         || $type === 'Updates'
         || TLContext::getConstructorsOfType($TL, $type, true, true)
     ) {
@@ -883,35 +1041,63 @@ $recurse = static function (Closure $populator, Closure $onStackEnd, string $typ
 
 $fileRefs = ['Document' => 'document', 'Photo' => 'photo'];
 
-$leftover = [];
+$locationTypes = [];
+
+foreach ($locations as $constructor => $ops) {
+    foreach ($ops as $op) {
+        if ($op->hasBackreference()) {
+            continue 2;
+        }
+    }
+    $t = $TL->getConstructors()->findByPredicate($constructor)['type'] ?? $TL->getMethods()->findByMethod($constructor)['type'];
+    if (isset($locationTypes[$t])) {
+        continue;
+    }
+
+    $hasAllConstructors = true;
+    foreach (TLContext::getConstructorsOfType($TL, $t, false, true) as $constructor => $data) {
+        if (!isset($locations[$constructor]) && $data['params']) {
+            $hasAllConstructors = false;
+            break;
+        }
+    }
+    if ($hasAllConstructors) {
+        $locationTypes[$t] = true;
+        continue;
+    }
+    $methods = TLContext::getConstructorsOfType($TL, $t, true, true);
+    $hasAllMethods = (bool) $methods;
+    foreach ($methods as $constructor => $_) {
+        if (!isset($locations[$constructor])) {
+            $hasAllMethods = false;
+            break;
+        }
+    }
+    $locationTypes[$t] = $hasAllMethods;
+}
+$locationTypes = array_filter($locationTypes);
+
+$normalizedLocations = [];
 
 foreach ($fileRefs as $type => $constructor) {
     $recurse(
-        $populateFileRefContext,
-        function (array $stack) use (&$leftover): void {
-            $leftover[json_encode($stack)] = $stack;
-        },
-        $type,
-        [$constructor]
-    );
-}
-
-if ($leftover) {
-    var_dump("Have leftover reference paths!");
-    var_dump(array_values($leftover));
-    var_dump("Have leftover reference paths!");
-    die(1);
-}
-
-foreach ($fileRefs as $type => $constructor) {
-    $recurse(
-        static fn () => false,
-        function (array $stack) use ($TL, $locations): void {
-            $ok = true;
+        static fn (string $type) => false,//isset($locationTypes[$type]),
+        static function (array $stack) use ($locations): void {
+            $stack = array_reverse($stack);
+            $had = false;
             foreach ($stack as $constructor) {
-                $ok = $ok && isset($locations[$constructor]);
+                if (isset($locations[$constructor])) {
+                    foreach ($locations[$constructor] as $op) {
+                        $normalized = $op->normalize($stack);
+                        if ($normalized === null) {
+                            continue;
+                        }
+                        $had = true;
+                        $normalizedLocations[$constructor] = $normalized;
+                    }
+                }
             }
-            if (!$ok) {
+            if (!$had) {
                 throw new AssertionError("Uncovered path: " . json_encode($stack));
             }
         },
@@ -919,6 +1105,7 @@ foreach ($fileRefs as $type => $constructor) {
         [$constructor]
     );
 }
+die;
 
 foreach ($locations as $constructor => $ops) {
     var_dump("Processing $constructor");

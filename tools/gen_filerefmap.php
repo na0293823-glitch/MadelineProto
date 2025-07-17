@@ -24,15 +24,16 @@ final class TLContext
     public function getTypeAtPosition(ExtractFromHereOp|ExtractFromMethodCallOp $path): string
     {
         if ($path instanceof ExtractFromHereOp) {
-            Assert::eq($this->position, $path->path[0], 'Path position does not match current position');
+            Assert::eq($this->position, $path->path[0], "Current constructor {$this->position} does not match expected constructor {$path->path[0]}");
         }
         $path = $path->path;
         $idx = 0;
         $type = null;
         do {
-            if ($type !== null) {
-                $_ = self::getConstructorsOfType($this->tl, $type)[$path[$idx]] ?? null;
-                Assert::notNull($_, "Could not find type {$path[$idx]} for $type, path: " . json_encode($path));
+            if ($type !== null
+                && !isset(self::getConstructorsOfType($this->tl, $type)[$path[$idx]])
+            ) {
+                throw new AssertionError("{$path[$idx]} is a constructor of type $type, path: " . json_encode($path));
             }
             $constructor = $this->tl->getConstructors()->findByPredicate($path[$idx]);
             if ($constructor === false) {
@@ -44,7 +45,9 @@ final class TLContext
             $type = null;
             foreach ($constructor['params'] as $param) {
                 if ($param['name'] === $path[$idx]) {
+                    Assert::false(isset($param['subtype']));
                     $type = $param['type'];
+                    break;
                 }
             }
             $n = $constructor['predicate'] ?? $constructor['method'];
@@ -160,7 +163,7 @@ final class GetInputPeerOp implements Op
         Assert::eq($type, 'Peer', "Expected type 'Peer' at position {$this->path->path[0]} but got '$type'");
         return [
             'op' => 'getInputPeer',
-            'from' => $this->path,
+            'from' => $this->path->build($tl),
         ];
     }
 }
@@ -204,13 +207,13 @@ final class GetInputChannelOp implements Op
         if ($type === 'long') {
             return [
                 'op' => 'getInputChannelById',
-                'from' => $this->path,
+                'from' => $this->path->build($tl),
             ];
         }
         Assert::eq($type, 'Channel', "Expected type 'Channel' at position {$this->path->path[0]} but got '$type'");
         return [
             'op' => 'getInputChannel',
-            'from' => $this->path,
+            'from' => $this->path->build($tl),
         ];
     }
 }
@@ -239,14 +242,16 @@ final class ArrayOp implements Op
 
 final class LiteralOp implements Op
 {
-    public function __construct(private readonly mixed $value)
+    public function __construct(private readonly string $type, private readonly mixed $value)
     {
+        Assert::inArray($type, ['int', 'long', 'string', 'bool', 'float'], "Invalid type '$type' for LiteralOp");
     }
 
     public function build(TLContext $tl): array
     {
         return [
             'op' => 'literal',
+            'type' => $this->type,
             'value' => $this->value,
         ];
     }
@@ -353,7 +358,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                     'access_hash' => new ExtractFromHereOp('botApp', 'access_hash'),
                 ]
             ),
-            'hash' => new LiteralOp(0),
+            'hash' => new LiteralOp('long', 0),
         ]);
         return;
     }
@@ -382,7 +387,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                 'channel' => new GetInputChannelOp(new ExtractFromMethodCallOp('channels.getAdminLog', 'channel')),
                 'max_id' => new ExtractFromHereOp('channelAdminLogEvent', 'id'),
                 'min_id' => new ExtractFromHereOp('channelAdminLogEvent', 'id'),
-                'limit' => new LiteralOp(1),
+                'limit' => new LiteralOp('int', 1),
             ]
         );
         return;
@@ -499,7 +504,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                     [
                         'id' => new ExtractFromHereOp('stickerSet', 'id'),
                         'access_hash' => new ExtractFromHereOp('stickerSet', 'access_hash'),
-                        'hash' => new LiteralOp(0),
+                        'hash' => new LiteralOp('long', 0),
                     ],
                 ),
             ]
@@ -516,7 +521,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                         [
                             'id' => new ExtractFromHereOp($c, 'set', 'stickerSet', 'id'),
                             'access_hash' => new ExtractFromHereOp($c, 'set', 'stickerSet', 'access_hash'),
-                            'hash' => new LiteralOp(0),
+                            'hash' => new LiteralOp('long', 0),
                         ],
                     ),
                 ]
@@ -533,7 +538,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
                     [
                         'id' => new ExtractFromHereOp('messages.stickerSet', 'set', 'stickerSet', 'id'),
                         'access_hash' => new ExtractFromHereOp('messages.stickerSet', 'set', 'stickerSet', 'access_hash'),
-                        'hash' => new LiteralOp(0),
+                        'hash' => new LiteralOp('long', 0),
                     ],
                 ),
             ]
@@ -541,12 +546,12 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
         return;
     }
     if ($type === 'messages.SavedGifs') {
-        $locations['messages.savedGifs'] = new CallOp('messages.getSavedGifs', ['hash' => new LiteralOp(0)]);
+        $locations['messages.savedGifs'] = new CallOp('messages.getSavedGifs', ['hash' => new LiteralOp('long', 0)]);
         return;
     }
     if ($type === 'account.SavedRingtones' || $type === 'account.SavedRingtone') {
         foreach (['account.savedRingtones', 'account.savedRingtoneConverted', 'account.uploadRingtone'] as $c) {
-            $locations[$c] = new CallOp('account.getSavedRingtones', ['hash' => new LiteralOp(0)]);
+            $locations[$c] = new CallOp('account.getSavedRingtones', ['hash' => new LiteralOp('long', 0)]);
         }
         return;
     }
@@ -560,14 +565,14 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
     if ($type === 'messages.AvailableEffects') {
         $locations['messages.availableEffects'] = new CallOp(
             'messages.getAvailableEffects',
-            ['hash' => new LiteralOp(0)],
+            ['hash' => new LiteralOp('long', 0)],
         );
         return;
     }
     if ($type === 'messages.AvailableReactions') {
         $locations['messages.availableReactions'] = new CallOp(
             'messages.getAvailableReactions',
-            ['hash' => new LiteralOp(0)],
+            ['hash' => new LiteralOp('long', 0)],
         );
         return;
     }
@@ -655,5 +660,5 @@ if ($final) {
 
 foreach ($locations as $constructor => $op) {
     var_dump("Processing $constructor");
-    $op->build(new TLContext($TL, $constructor));
+    var_dump([$constructor, $op->build(new TLContext($TL, $constructor))]);
 }

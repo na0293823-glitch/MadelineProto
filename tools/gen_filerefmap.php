@@ -33,7 +33,7 @@ final class TLContext
         Assert::notFalse($data, "Constructor or method not found for $constructor");
         foreach ($data['params'] as $param) {
             if (!isset($params[$param['name']])) {
-                if (isset($param['pow'])) {
+                if (isset($param['pow']) || $param['name'] === 'flags') {
                     continue;
                 }
                 throw new AssertionError("Mandatory parameter {$param['name']} not found in constructor or method $constructor");
@@ -58,7 +58,7 @@ final class TLContext
     public function getTypeAtPosition(SimpleExtractorOp $_path): string
     {
         if ($_path instanceof ExtractFromHereOp) {
-            Assert::eq($this->position, $_path->path[0], "Current constructor {$this->position} does not match expected constructor {$_path->path[0]}");
+            Assert::eq($this->position, $_path->path[0], "getTypeAtPosition: Current constructor {$this->position} does not match expected constructor {$_path->path[0]}");
         }
         $path = $_path->path;
         $idx = 0;
@@ -82,9 +82,8 @@ final class TLContext
             $n = $constructor['predicate'] ?? $constructor['method'];
             foreach ($constructor['params'] as $param) {
                 if ($param['name'] === $path[$idx]) {
-                    Assert::false(isset($param['subtype']), "Got flag for parameter {$path[$idx]} in constructor or method $n");
                     $hadFlag = $hadFlag || isset($param['pow']);
-                    $type = $param['type'];
+                    $type = isset($param['subtype']) ? "Vector<{$param['subtype']}>" : $param['type'];
                     break;
                 }
             }
@@ -147,6 +146,10 @@ interface ActionOp extends Op
 
 final class Noop implements ActionOp
 {
+    public function __construct(private readonly string $why)
+    {
+    }
+
     public function getType(TLContext $tl): string
     {
         return '';
@@ -164,7 +167,7 @@ final class Noop implements ActionOp
 
     public function build(TLContext $tl): array
     {
-        return ['op' => 'noop'];
+        return ['op' => 'noop', 'why' => $this->why];
     }
 }
 
@@ -348,15 +351,14 @@ final class ExtractStickerSetFromDocumentAttributesOp implements SimpleExtractor
 {
     public function __construct(
         private readonly SimpleExtractorOp $path,
-    )
-    {
+    ) {
     }
 
     public function hasBackreference(): bool
     {
         return $this->path->hasBackreference();
     }
-    
+
     public function normalize(array $stack): ?Op
     {
         $path = $this->path->normalize($stack);
@@ -368,7 +370,7 @@ final class ExtractStickerSetFromDocumentAttributesOp implements SimpleExtractor
         }
         return $this;
     }
-    
+
     public function getType(TLContext $tl): string
     {
         return 'InputStickerSet';
@@ -534,7 +536,7 @@ final class ArrayOp implements ExtractorOrLiteralOp
     public function normalize(array $stack): ?Op
     {
         $final = [];
-        $isDifferent = false;   
+        $isDifferent = false;
         foreach ($this->values as $value) {
             $normalized = $value->normalize($stack);
             if ($normalized === null) {
@@ -542,7 +544,7 @@ final class ArrayOp implements ExtractorOrLiteralOp
             }
             if ($normalized !== $value) {
                 $isDifferent = true;
-            }   
+            }
             $final[] = $normalized;
         }
         if ($isDifferent) {
@@ -573,7 +575,7 @@ final class LiteralOp implements ExtractorOrLiteralOp
 {
     public function __construct(private readonly string $type, private readonly mixed $value)
     {
-        Assert::inArray($type, ['int', 'long', 'string', 'bool', 'float', '#'], "Invalid type '$type' for LiteralOp");
+        Assert::inArray($type, ['int', 'long', 'string', 'bool', 'float'], "Invalid type '$type' for LiteralOp");
     }
 
     public function hasBackreference(): bool
@@ -599,7 +601,7 @@ final class LiteralOp implements ExtractorOrLiteralOp
     }
 }
 
-final class GetMessageOp implements ExtractorOrLiteralOp
+final class GetMessageOp implements ActionOp
 {
     public function __construct(
         private readonly Op $peer,
@@ -804,7 +806,6 @@ $locations['channelAdminLogEvent'][] = new CallOp(
         'min_id' => new ExtractFromHereOp(['channelAdminLogEvent', 'id']),
         'limit' => new LiteralOp('int', 1),
         'q' => new LiteralOp('string', ''),
-        'flags' => new LiteralOp('#', 0),
     ]
 );
 $locations['bots.getPreviewInfo'][] = new CopyMethodCallOp('bots.getPreviewInfo');
@@ -834,18 +835,19 @@ $locations['channelFull'][] = new CallOp(
     ]
 );
 $locations['help.getPremiumPromo'][] = new CopyMethodCallOp('help.getPremiumPromo');
-foreach (TLContext::getConstructorsOfType($TL, 'StarsTransaction', false) as $method => $_) {
-    $locations[$constructor][] = new CallOp(
-        'payments.getStarsTransactionByID',
+foreach (TLContext::getConstructorsOfType($TL, 'payments.StarsStatus', true) as $method => $_) {
+    $locations['starsTransaction'][] = new CallOp(
+        'payments.getStarsTransactionsByID',
         [
-            'peer' => new ExtractFromMethodCallOp([$constructor, 'peer']),
-            'id' => new ConstructorOp(
+            'peer' => new ExtractFromMethodCallOp([$method, 'peer']),
+            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new ExtractFromMethodCallOp([$method, 'ton'], true)]),
+            'id' => new ArrayOp(new ConstructorOp(
                 'inputStarsTransaction',
                 [
-                    'id' => new ExtractFromHereOp([$constructor, 'id']),
-                    'refund' => new ExtractFromHereOp([$constructor, 'refund']),
+                    'id' => new ExtractFromHereOp(['starsTransaction', 'id']),
+                    'refund' => new ExtractFromHereOp(['starsTransaction', 'refund'], true),
                 ]
-            ),
+            )),
         ]
     );
 }
@@ -947,7 +949,7 @@ $locations['photo'][] = new CallOp(
         'limit' => new LiteralOp('int', 1),
     ]
 );
-foreach (['photos.updateProfilePhoto', 'photos.updateProfilePhoto'] as $method) {
+foreach (['photos.updateProfilePhoto', 'photos.uploadProfilePhoto'] as $method) {
     $locations['photo'][] = new CallOp(
         'photos.getUserPhotos',
         [
@@ -965,6 +967,19 @@ foreach (['photos.updateProfilePhoto', 'photos.updateProfilePhoto'] as $method) 
         ]
     );
 }
+$locations['photo'][] = new CallOp(
+    'photos.getUserPhotos',
+    [
+        'user_id' => new ExtractFromMethodCallOp(
+            ['photos.uploadContactProfilePhoto', 'user_id'],
+        ),
+        'offset' => new LiteralOp('int', -1),
+        'max_id' => new ExtractFromHereOp(['photo', 'id']),
+        'limit' => new LiteralOp('int', 1),
+    ]
+);
+
+$locations['messages.uploadMedia'][]= new Noop('A freshly uploaded media file will obtain a context only once it is sent to a chat');
 
 $locations['document'][] = new CallOp(
     'messages.getStickerSet',
@@ -974,69 +989,49 @@ $locations['document'][] = new CallOp(
     ]
 );
 $locations['messages.getDocumentByHash'][] = new CopyMethodCallOp('messages.getDocumentByHash');
+$locations['updateServiceNotification'][] = new Noop('Cannot refetch service notifications');
 
 // Ignore these for now
 foreach (['payments.ResaleStarGifts', 'payments.StarGiftUpgradePreview', 'StarGift'] as $type) {
     foreach (TLContext::getConstructorsOfType($TL, $type, false) as $constructor => $_) {
-        $locations[$constructor][] = new Noop();
+        $locations[$constructor][] = new Noop('Contexts for star gifts are not yet implemented');
     }
 }
 
-$recurse = static function (Closure $earlyReturn, Closure $onStackEnd, string $type, array $stack = []) use ($TL, &$recurse): void {
-    if ($earlyReturn($type)) {
-        return;
-    }
+$recurse = static function (Closure $onStackEnd, string $type, array &$stack, array &$stackTypes) use ($TL, &$recurse): void {
     $pos = count($stack);
     $found = false;
     foreach ([...$TL->getConstructors()->by_id, ...$TL->getMethods()->by_id] as $constructor) {
         $name = $constructor['predicate'] ?? $constructor['method'];
+        $t = $constructor['type'];
+        if (isset($stackTypes[$t])) {
+            continue;
+        }
+        $stackTypes[$t] = true;
         foreach ($constructor['params'] as $param) {
-            if ($param['type'] === $type && !in_array($name, $stack, true)) {
+            if ((
+                $param['type'] === $type ||
+                ($param['subtype'] ?? null) === $type
+            )) {
                 $stack[$pos] = $name;
-                $recurse($earlyReturn, $onStackEnd, $constructor['type'], $stack);
+                $recurse($onStackEnd, $t, $stack, $stackTypes);
                 $found = true;
-            }
-            if (isset($param['subtype'])
-                && $param['subtype'] === $type
-                && !in_array($name, $stack, true)
-            ) {
-                $stack[$pos] = $name;
-                $recurse($earlyReturn, $onStackEnd, $constructor['type'], $stack);
-                $found = true;
+                unset($stack[$pos]);
             }
         }
+        unset($stackTypes[$t]);
     }
-    unset($stack[$pos]);
-    if (!$found
-        || $type === 'Update'
-        || $type === 'Updates'
-        || TLContext::getConstructorsOfType($TL, $type, true, true)
-    ) {
-        if (
-            (
-                in_array($stack[0], ['photo', 'document'], true)
-                && ($stack[1] ?? null) === 'game'
-                && in_array(end($stack), [
-                    'messages.webPagePreview',
-                    'payments.starsStatus',
-                    'messages.invitedUsers',
-                    'payments.paymentResult',
-                ], true)
-            ) || array_intersect(
-                [
-                    'updateServiceNotification',
-                    'updateShortSentMessage',
-                    'updateShortMessage',
-                    'updateShortChatMessage',
-                ],
-                $stack,
-            ) || end($stack) === 'messages.webPagePreview'
-            || end($stack) === 'help.appUpdate'
-        ) {
-            return;
+    if (!$found) {
+        foreach (TLContext::getConstructorsOfType($TL, $type, true, true) as $method => $data) {
+            $stack[$pos] = $method;
+            $onStackEnd($stack);
         }
+        unset($stack[$pos]);
+    } elseif ($type === 'Update') {
+        unset($stack[$pos]);
         $onStackEnd($stack);
     }
+
 };
 
 $fileRefs = ['Document' => 'document', 'Photo' => 'photo'];
@@ -1077,23 +1072,56 @@ foreach ($locations as $constructor => $ops) {
 }
 $locationTypes = array_filter($locationTypes);
 
+foreach ($locations as $constructor => $ops) {
+    var_dump("Processing $constructor");
+    foreach ($ops as $op) {
+        $op->build(new TLContext($TL, $constructor));
+    }
+}
+var_dump("Finished initial validation");
+
 $normalizedLocations = [];
 
 foreach ($fileRefs as $type => $constructor) {
+    $stack = [$constructor];
+    $stackTypes = [$type => true];
     $recurse(
-        static fn (string $type) => false,//isset($locationTypes[$type]),
         static function (array $stack) use ($locations): void {
-            $stack = array_reverse($stack);
+            if (end($stack) === 'messages.getWebPagePreview'
+                || end($stack) === 'help.appUpdate'
+                || (
+                    in_array($stack[0], ['photo', 'document'], true)
+                    && ($stack[1] ?? null) === 'game'
+                    && in_array(end($stack), [
+                        'messages.getWebPagePreview',
+                        'messages.invitedUsers',
+                        'payments.paymentResult',
+                    ], true)
+                ) || array_intersect(
+                    [
+                        'updateServiceNotification',
+                        'updateShortSentMessage',
+                        'updateShortMessage',
+                        'updateShortChatMessage',
+                    ],
+                    $stack,
+                )
+            ) {
+                return;
+            }
+            $slice = [];
             $had = false;
-            foreach ($stack as $constructor) {
+            for ($x = count($stack)-1; $x >= 0; $x--) {
+                $constructor = $stack[$x];
+                $slice[] = $constructor;
                 if (isset($locations[$constructor])) {
                     foreach ($locations[$constructor] as $op) {
-                        $normalized = $op->normalize($stack);
+                        $normalized = $op->normalize($slice);
                         if ($normalized === null) {
                             continue;
                         }
                         $had = true;
-                        $normalizedLocations[$constructor] = $normalized;
+                        $normalizedLocations[$constructor][] = $normalized;
                     }
                 }
             }
@@ -1102,14 +1130,7 @@ foreach ($fileRefs as $type => $constructor) {
             }
         },
         $type,
-        [$constructor]
+        $stack,
+        $stackTypes,
     );
-}
-die;
-
-foreach ($locations as $constructor => $ops) {
-    var_dump("Processing $constructor");
-    foreach ($ops as $op) {
-        var_dump([$constructor, $op->build(new TLContext($TL, $constructor))]);
-    }
 }

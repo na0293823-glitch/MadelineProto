@@ -21,7 +21,7 @@ final class TLContext
     ) {
     }
 
-    public function getTypeAtPosition(ExtractFromHereOp|ExtractFromRootOp $path): string
+    public function getTypeAtPosition(ExtractFromHereOp|ExtractFromMethodCallOp $path): string
     {
         if ($path instanceof ExtractFromHereOp) {
             Assert::eq($this->position, $path->path[0], 'Path position does not match current position');
@@ -47,7 +47,7 @@ final class TLContext
                     $type = $param['type'];
                 }
             }
-            $n = $constructor['predicate'] ?? $constructor['name'];
+            $n = $constructor['predicate'] ?? $constructor['method'];
             Assert::notNull($type, "Parameter {$path[$idx]} not found in constructor or method $n: " . json_encode($path));
         } while (++$idx < count($path));
 
@@ -121,7 +121,7 @@ final class ExtractFromHereOp implements Op
     }
 }
 
-final class ExtractFromRootOp implements Op
+final class ExtractFromMethodCallOp implements Op
 {
     /** @var string[] */
     public readonly array $path;
@@ -139,7 +139,7 @@ final class ExtractFromRootOp implements Op
     {
         $tl->getTypeAtPosition($this);
         return [
-            'op' => 'extractFromRoot',
+            'op' => 'extractFromMethodCall',
             'path' => $this->path,
         ];
     }
@@ -147,7 +147,7 @@ final class ExtractFromRootOp implements Op
 
 final class GetInputPeerOp implements Op
 {
-    public function __construct(private readonly ExtractFromHereOp|ExtractFromRootOp $path)
+    public function __construct(private readonly ExtractFromHereOp|ExtractFromMethodCallOp $path)
     {
     }
 
@@ -155,10 +155,7 @@ final class GetInputPeerOp implements Op
     {
         $type = $tl->getTypeAtPosition($this->path);
         if ($type === 'InputPeer') {
-            return [
-                'op' => 'identity',
-                'from' => $this->path,
-            ];
+            return $this->path->build($tl);
         }
         Assert::eq($type, 'Peer', "Expected type 'Peer' at position {$this->path->path[0]} but got '$type'");
         return [
@@ -169,7 +166,7 @@ final class GetInputPeerOp implements Op
 }
 final class GetInputUserOp implements Op
 {
-    public function __construct(private readonly ExtractFromHereOp|ExtractFromRootOp $path)
+    public function __construct(private readonly ExtractFromHereOp|ExtractFromMethodCallOp $path)
     {
     }
 
@@ -177,27 +174,24 @@ final class GetInputUserOp implements Op
     {
         $type = $tl->getTypeAtPosition($this->path);
         if ($type === 'InputUser') {
-            return [
-                'op' => 'identity',
-                'from' => $this->path,
-            ];
+            return $this->path->build($tl);
         }
         if ($type === 'long') {
             return [
                 'op' => 'getInputUserById',
-                'from' => $this->path,
+                'from' => $this->path->build($tl),
             ];
         }
         Assert::eq($type, 'User', "Expected type 'User' at position {$this->path->path[0]} but got '$type'");
         return [
             'op' => 'getInputUser',
-            'from' => $this->path,
+            'from' => $this->path->build($tl),
         ];
     }
 }
 final class GetInputChannelOp implements Op
 {
-    public function __construct(private readonly ExtractFromHereOp|ExtractFromRootOp $path)
+    public function __construct(private readonly ExtractFromHereOp|ExtractFromMethodCallOp $path)
     {
     }
 
@@ -205,10 +199,7 @@ final class GetInputChannelOp implements Op
     {
         $type = $tl->getTypeAtPosition($this->path);
         if ($type === 'InputChannel') {
-            return [
-                'op' => 'identity',
-                'from' => $this->path,
-            ];
+            return $this->path->build($tl);
         }
         if ($type === 'long') {
             return [
@@ -388,7 +379,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
         $locations['channelAdminLogEvent'] = new CallOp(
             'channels.getAdminLog',
             [
-                'channel' => new GetInputChannelOp(new ExtractFromRootOp('channels.getAdminLog', 'channel')),
+                'channel' => new GetInputChannelOp(new ExtractFromMethodCallOp('channels.getAdminLog', 'channel')),
                 'max_id' => new ExtractFromHereOp('channelAdminLogEvent', 'id'),
                 'min_id' => new ExtractFromHereOp('channelAdminLogEvent', 'id'),
                 'limit' => new LiteralOp(1),
@@ -446,7 +437,7 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
             $locations[$constructor] = new CallOp(
                 'payments.getStarsTransactionByID',
                 [
-                    'peer' => new ExtractFromRootOp($constructor, 'peer'),
+                    'peer' => new ExtractFromMethodCallOp($constructor, 'peer'),
                     'id' => new ConstructorOp(
                         'inputStarsTransaction',
                         [
@@ -581,19 +572,16 @@ $recurse = static function (string $type, array $stack = []) use ($TL, &$recurse
         return;
     }
 
-    if ($type === 'payments.ResaleStarGifts' || $type === 'payments.StarGiftUpgradePreview') {
+    if ($type === 'payments.ResaleStarGifts' || $type === 'payments.StarGiftUpgradePreview' || $type === 'StarGift') {
         // Ignore for now
-        return;
-    }
-    if ($type === 'photos.Photos' || $type === 'photos.Photo') {
-        // TODO: implement manually
-        return;
-    }
-    if ($type === 'StarGift') {
         return;
     }
     if ($type === 'BotInlineResult') {
         // Ignore ephemeral inline results
+        return;
+    }
+    if ($type === 'photos.Photos' || $type === 'photos.Photo') {
+        // TODO: implement manually
         return;
     }
     if (in_array($type, [
@@ -667,5 +655,5 @@ if ($final) {
 
 foreach ($locations as $constructor => $op) {
     var_dump("Processing $constructor");
-    var_dump($op = $op->build(new TLContext($TL, $constructor)));
+    $op->build(new TLContext($TL, $constructor));
 }

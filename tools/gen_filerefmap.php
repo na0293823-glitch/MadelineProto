@@ -1022,6 +1022,10 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
     $found = false;
     foreach ([...$TL->getConstructors()->by_id, ...$TL->getMethods()->by_id] as $constructor) {
         $predicate = $constructor['predicate'] ?? $constructor['method'];
+        if ($predicate === 'updateShortMessage' || $predicate === 'updateShortChatMessage' || $predicate === 'updateShortSentMessage') {
+            // Assume these are converted to message constructors by the client.
+            continue;
+        }
         $t = $constructor['type'];
         if (isset($stackTypes[$t])) {
             continue;
@@ -1036,22 +1040,22 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
                 $stack[$pos] = $predicate;
                 $recurse($onStackEnd, $t, $stack, $stackTypes);
                 $found = true;
-                unset($stack[$pos]);
-                unset($stack[$posName]);
+                unset($stack[$pos], $stack[$posName]);
+
             }
         }
         unset($stackTypes[$t]);
     }
-    unset($stack[$pos]);
-    unset($stack[$posName]);
+    unset($stack[$pos], $stack[$posName]);
+
     if (!$found) {
         foreach (TLContext::getConstructorsOfType($TL, $type, true, true) as $method => $data) {
             $stack[$posName] = '';
             $stack[$pos] = $method;
             $onStackEnd($stack);
         }
-        unset($stack[$posName]);
-        unset($stack[$pos]);
+        unset($stack[$posName], $stack[$pos]);
+
     } elseif ($type === 'Update') {
         $onStackEnd($stack);
     }
@@ -1111,17 +1115,16 @@ foreach ($fileRefs as $type => $constructor) {
     $stackTypes = [$type => true];
     $recurse(
         static function (array $stack) use ($locations, $TL, &$normalizedLocations): void {
-            if (array_intersect(
-                    [
-                        'updateShortSentMessage',
-                        'updateShortMessage',
-                        'updateShortChatMessage',
-                    ],
-                    $stack,
-                )
+            if (count($stack) >= 5 &&
+                $stack[count($stack)-1] === 'messages.getWebPagePreview' &&
+                $stack[count($stack)-2] === '' &&
+                $stack[count($stack)-3] === 'messages.webPagePreview' &&
+                $stack[count($stack)-4] === 'media' &&
+                $stack[count($stack)-5] !== 'messageMediaWebPage'
             ) {
                 return;
             }
+
             $slice = [];
             $had = false;
             $top = end($stack);

@@ -370,4 +370,5 @@ if ($diff) {
     throw new AssertionError("Leftover ops!");
 }
 
+var_dump($locations);
 var_dump("OK!");

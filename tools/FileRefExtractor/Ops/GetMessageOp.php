@@ -18,19 +18,19 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\FileRefExtractor\Ops;
 
+use danog\MadelineProto\FileRefExtractor\ActionOp;
 use danog\MadelineProto\FileRefExtractor\FieldExtractorOp;
-use danog\MadelineProto\FileRefExtractor\FieldTransformationOp;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use Webmozart\Assert\Assert;
 
-final readonly class GetMessageOp implements FieldTransformationOp
+final readonly class GetMessageOp implements ActionOp
 {
     public function __construct(
         private readonly FieldExtractorOp $peer,
         private readonly FieldExtractorOp $id,
     ) {
     }
-    public function normalize(array $stack, string $current): ?\danog\MadelineProto\FileRefExtractor\TypedOp
+    public function normalize(array $stack, string $current): ?ActionOp
     {
         $peer = $this->peer->normalize($stack, $current);
         if ($peer === null) {

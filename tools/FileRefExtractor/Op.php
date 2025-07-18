@@ -18,7 +18,6 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\FileRefExtractor;
 
-
 interface Op
 {
     public function build(TLContext $tl): array;

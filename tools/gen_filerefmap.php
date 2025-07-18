@@ -18,8 +18,6 @@ use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\FileRefExtractor\TLWrapper;
 use danog\MadelineProto\Settings\TLSchema;
 use danog\MadelineProto\TL\TL;
-use danog\MadelineProto\TL\TLInterface;
-use Webmozart\Assert\Assert;
 
 require 'vendor/autoload.php';
 

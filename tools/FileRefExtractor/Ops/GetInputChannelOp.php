@@ -20,7 +20,6 @@ namespace danog\MadelineProto\FileRefExtractor\Ops;
 
 use danog\MadelineProto\FileRefExtractor\Op;
 use danog\MadelineProto\FileRefExtractor\TLContext;
-use danog\MadelineProto\FileRefExtractor\TLWrapper;
 use Webmozart\Assert\Assert;
 
 final readonly class GetInputChannelOp implements ExtractorOrLiteralOp

@@ -18,9 +18,6 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\FileRefExtractor\Ops;
 
-use danog\MadelineProto\FileRefExtractor\Op;
-
-
 interface ExtractorOrLiteralOp extends SimpleExtractorOp
 {
 }

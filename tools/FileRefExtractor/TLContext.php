@@ -109,7 +109,7 @@ final readonly class TLContext
             }
             Assert::notNull($type, "Parameter {$path[$idx]} not found in constructor or method $n: " . json_encode($path));
             Assert::notNull($realType, "Parameter {$path[$idx]} not found in constructor or method $n: " . json_encode($path));
-        } while (++$idx < count($path));
+        } while (++$idx < \count($path));
         if ($_path->isFlag != $hadFlag && (!$this->normalized || !$hadFlag)) {
             $hadFlag = $hadFlag ? 'flag' : 'no flag';
             $expectedFlag = $_path->isFlag ? 'flag' : 'no flag';

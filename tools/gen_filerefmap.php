@@ -361,55 +361,59 @@ foreach ($fileRefs as $type => $constructor) {
     $stackTypes = [$type => true];
     $recurse(
         static function (array $stack) use ($locations, $TL, $tmp, &$validated, $storyMethods, $starMethods): void {
-            foreach ([false, true] as $ignoreFlagged) {
-                $slice = [];
-                $hadAll = true;
-                $hadAny = false;
-                $top = end($stack)[0];
-                for ($x = count($stack)-1; $x >= 0; $x--) {
-                    $pair = $stack[$x];
-                    foreach ($locations[$pair[0]] ?? [] as $op) {
-                        $normalized = $op->normalize($slice, $pair[0], $ignoreFlagged);
-                        if ($normalized === null) {
-                            $hadAll = false;
-                            continue;
-                        }
-                        $hadAny = true;
-                        $normalized->build(new TLContext($TL, $tmp, $top));
-                        $validated[$pair[0]][spl_object_id($op)] = $op;
-                    }
-                    $slice[] = $pair;
-                }
-                if (!$ignoreFlagged && !$hadAny) {
-                    throw new AssertionError("Uncovered path: " . json_encode($stack));
-                }
-                if ($ignoreFlagged && !$hadAll) {
-                    if ($top === 'updateStory'
-                        || $top === 'peerStories'
-                        // The two above always have the story peer flag set.
-
-                        || isset($storyMethods[$top])
-                        || isset($starMethods[$top])
-
-                        // The two above always have the story peer/all star flags set.
-
-                        || $top === 'messages.getFullChat'
-                        || $top === 'channels.getFullChannel'
-                        || $top === 'users.getFullUser'
-                        // The two above are related to botInfo, ignore as we already store a context for the chat info.
-                    ) {
+            $slice = [];
+            $hadAny = false;
+            $skippedDueToFlags = [];
+            $top = end($stack)[0];
+            for ($x = count($stack)-1; $x >= 0; $x--) {
+                $pair = $stack[$x];
+                foreach ($locations[$pair[0]] ?? [] as $op) {
+                    $normalized = $op->normalize($slice, $pair[0], false);
+                    if ($normalized === null) {
                         continue;
                     }
-                    foreach ($slice as [$cons]) {
-                        if ($cons === 'webPageAttributeStory'
-                            || $cons === 'foundStory'
-                            || $cons === 'publicForwardStory'
-                        ) {
-                            continue 2;
-                        }
+                    $hadAny = true;
+                    $normalized->build(new TLContext($TL, $tmp, $top));
+                    $validated[$pair[0]][spl_object_id($op)] = $op;
+
+                    $normalized = $op->normalize($slice, $pair[0], true);
+                    if ($normalized === null) {
+                        $skippedDueToFlags []= $op;
+                        continue;
                     }
-                    throw new AssertionError("Uncovered path (didn't have at least one unflagged context): " . json_encode($stack));
                 }
+                $slice[] = $pair;
+            }
+            if (!$hadAny) {
+                throw new AssertionError("Uncovered path: " . json_encode($stack));
+            }
+            if ($skippedDueToFlags) {
+                if ($top === 'updateStory'
+                    || $top === 'peerStories'
+                    // The two above always have the story peer flag set.
+
+                    || isset($storyMethods[$top])
+                    || isset($starMethods[$top])
+
+                    // The two above always have the story peer/all star flags set.
+
+                    || $top === 'messages.getFullChat'
+                    || $top === 'channels.getFullChannel'
+                    || $top === 'users.getFullUser'
+                    // The two above are related to botInfo, ignore as we already store a context for the chat info.
+                ) {
+                    return;
+                }
+                foreach ($slice as [$cons]) {
+                    if ($cons === 'webPageAttributeStory'
+                        || $cons === 'foundStory'
+                        || $cons === 'publicForwardStory'
+                    ) {
+                        return;
+                    }
+                }
+                var_dump($skippedDueToFlags);
+                throw new AssertionError("Uncovered path (didn't have at least one unflagged context): " . json_encode($stack));
             }
         },
         $type,

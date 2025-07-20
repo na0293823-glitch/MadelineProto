@@ -39,8 +39,10 @@ foreach ($TL->getConstructorsOfType('Message') as $constructor => $_) {
     );
 }
 
+$storyMethods = [];
 foreach (['stories.StoryViewsList', 'stories.Stories', 'stories.PeerStories', 'stories.StoryReactionsList'] as $t) {
     foreach ($TL->getMethodsOfType($t) as $method => $_) {
+        $storyMethods[$method] = true;
         $locations['storyItem'][] = new CallOp(
             'stories.getStoriesByID',
             [
@@ -135,7 +137,10 @@ $locations['channelFull'][] = new CallOp(
     ]
 );
 $locations['help.getPremiumPromo'][] = new CopyMethodCallOp('help.getPremiumPromo');
+
+$starMethods = [];
 foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
+    $starMethods[$method] = true;
     $locations['starsTransaction'][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
@@ -355,7 +360,7 @@ foreach ($fileRefs as $type => $constructor) {
     $stack = [[$constructor, 'file_reference']];
     $stackTypes = [$type => true];
     $recurse(
-        static function (array $stack) use ($locations, $TL, $tmp, &$validated): void {
+        static function (array $stack) use ($locations, $TL, $tmp, &$validated, $storyMethods, $starMethods): void {
             foreach ([false, true] as $ignoreFlagged) {
                 $slice = [];
                 $hadAll = true;
@@ -379,12 +384,27 @@ foreach ($fileRefs as $type => $constructor) {
                     throw new AssertionError("Uncovered path: " . json_encode($stack));
                 }
                 if ($ignoreFlagged && !$hadAll) {
-                    if ($slice[0][0] === 'updateStory') {
-                        // This has the peer flag set.
+                    if ($top === 'updateStory'
+                        || $top === 'peerStories'
+                        // The two above always have the story peer flag set.
+
+                        || isset($storyMethods[$top])
+                        || isset($starMethods[$top])
+
+                        // The two above always have the story peer/all star flags set.
+
+                        || $top === 'messages.getFullChat'
+                        || $top === 'channels.getFullChannel'
+                        || $top === 'users.getFullUser'
+                        // The two above are related to botInfo, ignore as we already store a context for the chat info.
+                    ) {
                         continue;
                     }
                     foreach ($slice as [$cons]) {
-                        if ($cons === 'webPageAttributeStory') {
+                        if ($cons === 'webPageAttributeStory'
+                            || $cons === 'foundStory'
+                            || $cons === 'publicForwardStory'
+                        ) {
                             continue 2;
                         }
                     }

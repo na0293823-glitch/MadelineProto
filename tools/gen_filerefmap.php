@@ -542,7 +542,7 @@ foreach ($locations as $constructor => $ops) {
 $output = $output->getOutput();
 
 file_put_contents(
-    __DIR__.'/file_ref_map.json',
+    __DIR__.'/../src/file_ref_map.json',
     json_encode($output)
 );
 

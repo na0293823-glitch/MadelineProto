@@ -118,12 +118,11 @@ final readonly class CallOp implements ActionOp
             }
         } else {
             \assert($out instanceof Ast);
-            $out->output[$tl->position][] = [
+            $out->addNode($tl, [
                 'op' => 'call',
                 'method' => $this->method,
                 'args' => $final,
-                'needsParent' => $out->needsParent,
-            ];
+            ]);
         }
     }
 }

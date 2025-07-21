@@ -42,11 +42,12 @@ final readonly class CopyMethodCallOp implements ActionOp
         $tl->tl->tl->getMethods()->findByMethod($this->method)['type']; // Validate type
         $out = $tl->buildMode;
         if ($out instanceof Ast) {
-            /*$out->output[$this->method][] = [
-                'op' => 'copyMethodCall',
-                'ctx' => $out->contextName,
-                'method' => $this->method,
-            ];*/
+            $out->addNode(
+                $tl,
+                [
+                    'op' => 'copyMethodCall',
+                ]
+            );
         }
 
     }

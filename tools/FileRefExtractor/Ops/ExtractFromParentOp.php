@@ -23,7 +23,6 @@ use danog\MadelineProto\FileRefExtractor\BuildMode\Flat;
 use danog\MadelineProto\FileRefExtractor\FieldExtractorOp;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\FileRefExtractor\TypedOp;
-use Webmozart\Assert\Assert;
 
 final readonly class ExtractFromParentOp extends FieldExtractorOp
 {
@@ -33,8 +32,9 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
             return null;
         }
         $new = [];
+        $isDifferent = false;
         foreach ($this->path as $i => $part) {
-            if ($ignoreFlag && \array_key_exists(2, $part) && is_int($part[2]) && ($part[2] & ExtractFromHereOp::FLAG_IF_ABSENT_ABORT)) {
+            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & ExtractFromHereOp::FLAG_IF_ABSENT_ABORT)) {
                 return null;
             }
             if (isset($part[2]) && $part[2] instanceof TypedOp) {
@@ -42,32 +42,29 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
                 if ($n === null) {
                     return null;
                 }
-                $part[2] = $n;
+                if ($n !== $part[2]) {
+                    $isDifferent = true;
+                    $part[2] = $n;
+                }
             }
             $new[$i] = $part;
         }
-        return new ExtractFromHereOp($new);
+        if ($isDifferent) {
+            return new ExtractFromHereOp($new);
+        }
+        return $this;
     }
 
     public function build(TLContext $tl): array
     {
-        // Validate
-        $t = $this->getType($tl);
         if ($tl->buildMode instanceof Flat) {
         } elseif ($tl->buildMode instanceof Ast) {
-            Assert::eq($tl->buildMode->needsParent ?? $this->path[0][0], $this->path[0][0]);
-            $tl->buildMode->needsParent = $this->path[0][0];
-        }
-        $new = [];
-        foreach ($this->path as $part) {
-            if (isset($part[2]) && $part[2] instanceof TypedOp) {
-                $part[2] = $part[2]->build($tl);
-            }
-            $new[] = $part;
+            $tl->buildMode->setNeedsParent($this->path[0][0]);
         }
         return [
-            'op' => 'extractFromParentCall',
-            'path' => $this->path,
+            'op' => 'extractFromParentConstructor',
+            'type' => $this->getType($tl),
+            'path' => $this->buildPath($tl),
         ];
     }
 }

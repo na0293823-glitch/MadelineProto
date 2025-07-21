@@ -19,14 +19,45 @@ declare(strict_types=1);
 namespace danog\MadelineProto\FileRefExtractor\BuildMode;
 
 use danog\MadelineProto\FileRefExtractor\BuildMode;
+use danog\MadelineProto\FileRefExtractor\TLContext;
 
 final class Ast implements BuildMode
 {
-    public array $output = [];
-    public ?string $needsParent = null;
+    private array $output = [];
+    private ?string $needsParent = null;
 
-    public function cleanup(): void
+    public function __construct(
+        private readonly bool $allowBackrefs,
+    ) {
+    }
+
+    public function getOutput(): array
     {
+        return $this->output;
+    }
+
+    public function addNode(TLContext $ctx, array $node): void
+    {
+        if ($this->needsParent !== null) {
+            $node['needsParent'] = $this->needsParent;
+        }
+        $this->output[$ctx->position][] = $node;
         $this->needsParent = null;
+    }
+
+    public function getNeedsParent(): ?string
+    {
+        return $this->needsParent;
+    }
+
+    public function setNeedsParent(string $needsParent): void
+    {
+        if (!$this->allowBackrefs) {
+            throw new \LogicException('Cannot set needsParent when backreferences are not allowed.');
+        }
+        if ($this->needsParent !== null && $this->needsParent !== $needsParent) {
+            throw new \LogicException("Cannot change needsParent from {$this->needsParent} to {$needsParent} once it has been set.");
+        }
+        $this->needsParent = $needsParent;
     }
 }

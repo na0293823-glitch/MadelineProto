@@ -29,7 +29,7 @@ final readonly class ExtractFromHereOp extends FieldExtractorOp
     {
         $new = [];
         foreach ($this->path as $i => $part) {
-            if ($ignoreFlag && \array_key_exists(2, $part) && is_int($part[2]) && ($part[2] & ExtractFromHereOp::FLAG_IF_ABSENT_ABORT)) {
+            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & ExtractFromHereOp::FLAG_IF_ABSENT_ABORT)) {
                 return null;
             }
             if (isset($part[2]) && $part[2] instanceof TypedOp) {
@@ -49,19 +49,10 @@ final readonly class ExtractFromHereOp extends FieldExtractorOp
 
     public function build(TLContext $tl): array
     {
-        // Validate
-        $this->getType($tl);
-
-        $new = [];
-        foreach ($this->path as $part) {
-            if (isset($part[2]) && $part[2] instanceof TypedOp) {
-                $part[2] = $part[2]->build($tl);
-            }
-            $new[] = $part;
-        }
         return [
             'op' => 'extractFromHere',
-            'path' => $new,
+            'type' => $this->getType($tl),
+            'path' => $this->buildPath($tl),
         ];
     }
 }

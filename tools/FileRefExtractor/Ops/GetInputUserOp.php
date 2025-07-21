@@ -54,12 +54,14 @@ final readonly class GetInputUserOp implements FieldTransformationOp
         if ($type === 'long') {
             return [
                 'op' => 'getInputUserById',
+                'type' => $this->getType($tl),
                 'from' => $this->path->build($tl),
             ];
         }
         Assert::eq($type, 'User', "Expected type 'User' at position {$this->path->path[0][0]} but got '$type'");
         return [
             'op' => 'getInputUser',
+            'type' => $this->getType($tl),
             'from' => $this->path->build($tl),
         ];
     }

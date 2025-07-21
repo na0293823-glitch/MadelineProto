@@ -65,6 +65,7 @@ final readonly class ConstructorOp implements TypedOp
         }
         return [
             'op' => 'constructor',
+            'type' => $this->getType($tl),
             'constructor' => $this->constructor,
             'args' => $final,
         ];

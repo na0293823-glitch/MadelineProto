@@ -20,5 +20,4 @@ namespace danog\MadelineProto\FileRefExtractor;
 
 interface BuildMode
 {
-    public function cleanup(): void;
 }

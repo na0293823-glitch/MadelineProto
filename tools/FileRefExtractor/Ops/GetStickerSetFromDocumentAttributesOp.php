@@ -53,6 +53,7 @@ final readonly class GetStickerSetFromDocumentAttributesOp implements FieldTrans
         return [
             'op' => 'extractStickerSetFromDocumentAttributes',
             'from' => $this->path->build($tl),
+            'type' => $this->getType($tl),
         ];
     }
 }

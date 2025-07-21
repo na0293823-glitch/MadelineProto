@@ -53,6 +53,35 @@ abstract readonly class FieldExtractorOp implements TypedOp
         }
     }
 
+    final protected function buildPath(TLContext $tl): array
+    {
+        $new = [];
+        foreach ($this->path as $part) {
+            $newPart = [
+                'constructor' => $part[0],
+                'param' => $part[1],
+            ];
+            if (isset($part[2])) {
+                if ($part[2] instanceof TypedOp) {
+                    $newPart['isFlag'] = true;
+                    $newPart['fallbackIfFlagEmpty'] = $part[2]->build($tl);
+                } elseif (\is_int($part[2])) {
+                    if ($part[2] & self::FLAG_UNPACK_ARRAY) {
+                        $newPart['unpackArray'] = true;
+                    }
+                    if ($part[2] & self::FLAG_IF_ABSENT_ABORT) {
+                        $newPart['isFlag'] = true;
+                    }
+                    if ($part[2] & self::FLAG_PASSTHROUGH) {
+                        $newPart['isFlag'] = true;
+                        $newPart['flagPassthrough'] = true;
+                    }
+                }
+            }
+            $new[] = $newPart;
+        }
+        return $new;
+    }
     final public function getType(TLContext $tl): string
     {
         $path = $this;

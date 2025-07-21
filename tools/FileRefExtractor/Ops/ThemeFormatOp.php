@@ -40,6 +40,7 @@ final readonly class ThemeFormatOp implements LiteralOp
     {
         return [
             'op' => 'themeFormat',
+            'type' => $this->getType($tl),
         ];
     }
 }

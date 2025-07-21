@@ -61,14 +61,13 @@ foreach (['stories.Stories'] as $t) {
                 'id' => new ArrayOp(new ExtractFromHereOp([
                     [$method, ''],
                     ['stories.stories', 'stories', ExtractFromHereOp::FLAG_UNPACK_ARRAY],
-                    ['storyItem', 'id']
+                    ['storyItem', 'id'],
                 ])),
                 'peer' => new GetInputPeerOp(new ExtractFromHereOp([[$method, 'peer']])),
             ]
         );
     }
 }
-
 
 $locations['storyViewPublicRepost'][] = new CallOp(
     'stories.getStoriesByID',
@@ -142,12 +141,12 @@ $locations['channels.getAdminLog'][] = new CallOp(
         'max_id' => new ExtractFromHereOp([
             ['channels.getAdminLog', ''],
             ['channels.adminLogResults', 'events', ExtractFromHereOp::FLAG_UNPACK_ARRAY],
-            ['channelAdminLogEvent', 'id']
+            ['channelAdminLogEvent', 'id'],
         ]),
         'min_id' => new ExtractFromHereOp([
             ['channels.getAdminLog', ''],
             ['channels.adminLogResults', 'events', ExtractFromHereOp::FLAG_UNPACK_ARRAY],
-            ['channelAdminLogEvent', 'id']
+            ['channelAdminLogEvent', 'id'],
         ]),
         'limit' => new PrimitiveLiteralOp('int', 1),
         'q' => new PrimitiveLiteralOp('string', ''),
@@ -220,12 +219,12 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
                     'id' => new ExtractFromHereOp([
                         [$method, ''],
                         ['payments.starsStatus', 'history', ExtractFromHereOp::FLAG_IF_ABSENT_ABORT|ExtractFromHereOp::FLAG_UNPACK_ARRAY],
-                        ['starsTransaction', 'id']
+                        ['starsTransaction', 'id'],
                     ]),
                     'refund' => new ExtractFromHereOp([
                         [$method, ''],
                         ['payments.starsStatus', 'history', ExtractFromHereOp::FLAG_IF_ABSENT_ABORT|ExtractFromHereOp::FLAG_UNPACK_ARRAY],
-                        ['starsTransaction', 'refund', ExtractFromHereOp::FLAG_PASSTHROUGH]
+                        ['starsTransaction', 'refund', ExtractFromHereOp::FLAG_PASSTHROUGH],
                     ]),
                 ]
             )),
@@ -326,7 +325,7 @@ $locations['photos.getUserPhotos'][] = new CallOp(
         'max_id' => new ExtractFromHereOp([
             ['photos.getUserPhotos', ''],
             ['photos.photos', 'photos', ExtractFromHereOp::FLAG_UNPACK_ARRAY],
-            ['photo', 'id']
+            ['photo', 'id'],
         ]),
         'limit' => new PrimitiveLiteralOp('int', 1),
     ]
@@ -444,19 +443,10 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
     unset($stack[$pos]);
 };
 
-$fileRefs = ['Document' => 'document', 'Photo' => 'photo'];
-
-$output = new Ast;
-foreach ($locations as $constructor => $ops) {
-    foreach ($ops as $idx => $op) {
-        $op->build(new TLContext($TL, $output, $constructor));
-        $output->cleanup();
-    }
-}
 $validated = [];
 
-$tmp = new Ast;
-foreach ($fileRefs as $type => $constructor) {
+$tmp = new Ast(allowBackrefs: false);
+foreach (['Document' => 'document', 'Photo' => 'photo'] as $type => $constructor) {
     $stack = [[$constructor, 'file_reference']];
     $stackTypes = [$type => 1];
     $recurse(
@@ -474,7 +464,6 @@ foreach ($fileRefs as $type => $constructor) {
                     }
                     $hadAny = true;
                     $normalized->build(new TLContext($TL, $tmp, $top));
-                    $tmp->cleanup();
                     $validated[$pair[0]][spl_object_id($op)] = $op;
 
                     $normalized = $op->normalize($slice, $pair[0], true);
@@ -501,7 +490,7 @@ foreach ($fileRefs as $type => $constructor) {
                     || $top === 'messages.getFullChat'
                     || $top === 'channels.getFullChannel'
                     || $top === 'users.getFullUser'
-                    // The two above are related to botInfo, ignore as we already store a context for the chat info.
+                    // The three above are related to botInfo, ignore as we already store a context for the chat info.
                 ) {
                     return;
                 }
@@ -514,6 +503,7 @@ foreach ($fileRefs as $type => $constructor) {
                         || $cons === 'storyViewPublicRepost'
                         || $cons === 'storyReactionPublicRepost'
                     ) {
+                        // The above always have all necessary flags set
                         return;
                     }
                 }
@@ -543,6 +533,14 @@ if ($diff) {
     throw new AssertionError("Leftover ops!");
 }
 
-var_dump($builtPre);
+$output = new Ast(allowBackrefs: false);
+foreach ($locations as $constructor => $ops) {
+    foreach ($ops as $idx => $op) {
+        $op->build(new TLContext($TL, $output, $constructor));
+    }
+}
+$output = $output->getOutput();
+
+var_dump($output);
 //var_dump($locations);
 var_dump("OK!");

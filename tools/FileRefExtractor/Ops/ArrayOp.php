@@ -20,6 +20,7 @@ namespace danog\MadelineProto\FileRefExtractor\Ops;
 
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\FileRefExtractor\TypedOp;
+use Webmozart\Assert\Assert;
 
 final readonly class ArrayOp implements TypedOp
 {
@@ -56,12 +57,16 @@ final readonly class ArrayOp implements TypedOp
 
     public function build(TLContext $tl): array
     {
+        $t = $this->values[0]->getType($tl);
         $arr = [];
         foreach ($this->values as $key => $value) {
+            $curType = $value->getType($tl);
+            Assert::eq($curType, $t, "Expected type '$t' at position $key but got '$curType'");
             $arr[$key] = $value->build($tl);
         }
         return [
             'op' => 'array',
+            'type' => "Vector<$t>",
             'value' => $arr,
         ];
     }

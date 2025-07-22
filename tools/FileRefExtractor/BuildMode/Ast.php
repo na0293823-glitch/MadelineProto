@@ -34,7 +34,8 @@ final class Ast implements BuildMode
     private ?string $needsParent = null;
 
     public function __construct(
-        private readonly bool $allowBackrefs,
+        public readonly bool $allowBackrefs,
+        public readonly bool $allowUnpacking,
     ) {
     }
 
@@ -58,8 +59,11 @@ final class Ast implements BuildMode
             '_' => 'origin',
             'predicate' => $ctx->position,
             'is_constructor' => $ctx->isConstructor,
-            //'needsParent' => $this->needsParent,
         ];
+        if ($this->needsParent !== null) {
+            $out['needs_parent'] = $this->needsParent;
+            $out['parent_is_constructor'] = $ctx->tl->isConstructor($this->needsParent);
+        }
         if ($action !== null) {
             $out['action'] = $action;
             Assert::null($why);

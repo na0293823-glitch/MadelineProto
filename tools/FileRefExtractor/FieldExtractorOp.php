@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\FileRefExtractor;
 
 use AssertionError;
+use danog\MadelineProto\FileRefExtractor\BuildMode\Ast;
 use danog\MadelineProto\FileRefExtractor\Ops\CopyOp;
 use Webmozart\Assert\Assert;
 
@@ -67,6 +68,9 @@ abstract readonly class FieldExtractorOp implements TypedOp
                     $newPart['flag_fallback_if_empty'] = $part[2]->build($tl);
                 } elseif (\is_int($part[2])) {
                     if ($part[2] & self::FLAG_UNPACK_ARRAY) {
+                        if ($tl->buildMode instanceof Ast && !$tl->buildMode->allowUnpacking) {
+                            throw new AssertionError('Cannot use unpack_array flag in Ast mode with backrefs enabled');
+                        }
                         $newPart['unpack_vector'] = true;
                     }
                     if ($part[2] & self::FLAG_IF_ABSENT_ABORT) {

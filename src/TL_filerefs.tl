@@ -1,7 +1,7 @@
 // Root
 fileReferenceOrigins ctxs:Vector<Origin> = FileReferenceOrigins;
 
-origin flags:# predicate:string is_constructor:flags.0?true action:flags.1?ActionOp noop:flags.2?string = origin;
+origin flags:# predicate:string is_constructor:flags.0?true action:flags.1?ActionOp noop:flags.2?string needs_parent:flags.3?string parent_is_constructor:flags.4?true = origin;
 
 // For string => TypedOp dictionaries
 typedOpArg key:string value:TypedOp = TypedOpArg;
@@ -11,7 +11,7 @@ callOp method:string args:Vector<TypedOpArg> = ActionOp;
 getMessageOp flags:# peer:TypedOp id:TypedOp from_scheduled:flags.0?TypedOp = ActionOp;
 
 // Field extraction path
-pathPart flags:# constructor:string param:string flag_abort_if_empty:flags.0?true flag_fallback_if_empty:flags.1?TypedOp flag_passthrough:flags.2?true unpack_vector:flags.3?true = PathPart;
+pathPart flags:# constructor:string param:string flag_abort_if_empty:flags.0?true flag_fallback_if_empty:flags.1?TypedOp flag_passthrough:flags.2?true = PathPart;
 
 path parts:Vector<PathPart> = Path;
 
@@ -21,6 +21,7 @@ path parts:Vector<PathPart> = Path;
 typedOp type:string op:TypedOpOp = TypedOp;
 
 copyOp path:Path = TypedOpOp;
+copyFromParentOp path:Path = TypedOpOp;
 
 getInputChannelByIdOp path:Path = TypedOpOp;
 getInputUserByIdOp path:Path = TypedOpOp;

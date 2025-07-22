@@ -62,9 +62,12 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
             $tl->buildMode->setNeedsParent($this->path[0][0]);
         }
         return [
-            '_' => 'extractFromParentConstructor',
+            '_' => 'typedOp',
             'type' => $this->getType($tl),
-            'path' => $this->buildPath($tl),
+            'op' => [
+                '_' => 'copyFromParentOp',
+                'path' => $this->buildPath($tl),
+            ],
         ];
     }
 }

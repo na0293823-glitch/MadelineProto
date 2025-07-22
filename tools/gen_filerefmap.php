@@ -40,7 +40,8 @@ foreach ($TL->getConstructorsOfType('Message') as $constructor => $_) {
 }
 
 $storyMethods = [];
-/*foreach (['stories.StoryViewsList', 'stories.Stories', 'stories.PeerStories', 'stories.StoryReactionsList'] as $t) {
+//foreach (['stories.StoryViewsList', 'stories.Stories', 'stories.PeerStories', 'stories.StoryReactionsList'] as $t) {
+foreach (['stories.Stories'] as $t) {
     foreach ($TL->getMethodsOfType($t) as $method => $_) {
         $storyMethods[$method] = true;
         $locations['storyItem'][] = new CallOp(
@@ -51,7 +52,8 @@ $storyMethods = [];
             ]
         );
     }
-}*/
+}
+/*
 foreach (['stories.Stories'] as $t) {
     foreach ($TL->getMethodsOfType($t) as $method => $_) {
         $storyMethods[$method] = true;
@@ -67,7 +69,7 @@ foreach (['stories.Stories'] as $t) {
             ]
         );
     }
-}
+}*/
 
 $locations['storyViewPublicRepost'][] = new CallOp(
     'stories.getStoriesByID',
@@ -84,11 +86,19 @@ $locations['storyReactionPublicRepost'][] = new CallOp(
     ]
 );
 
-$locations['peerStories'][] = new CallOp(
+/*$locations['peerStories'][] = new CallOp(
     'stories.getStoriesByID',
     [
         'id' => new ArrayOp(new CopyOp([['peerStories', 'stories', CopyOp::FLAG_UNPACK_ARRAY], ['storyItem', 'id']])),
         'peer' => new GetInputPeerOp(new CopyOp([['peerStories', 'peer']])),
+    ]
+);*/
+
+$locations['storyItem'][] = new CallOp(
+    'stories.getStoriesByID',
+    [
+        'id' => new ArrayOp(new CopyOp([['storyItem', 'id']])),
+        'peer' => new GetInputPeerOp(new ExtractFromParentOp([['peerStories', 'peer']])),
     ]
 );
 
@@ -123,7 +133,7 @@ $locations['storyItem'][] = new CallOp('stories.getStoriesByID', [
     'peer' => new GetInputPeerOp(new CopyOp([['storyItem', 'from_id', CopyOp::FLAG_IF_ABSENT_ABORT]])),
 ]);
 $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.getSponsoredMessages');
-/*$locations['channelAdminLogEvent'][] = new CallOp(
+$locations['channelAdminLogEvent'][] = new CallOp(
     'channels.getAdminLog',
     [
         'channel' => new GetInputChannelOp(new ExtractFromParentOp([['channels.getAdminLog', 'channel']])),
@@ -132,8 +142,9 @@ $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.g
         'limit' => new PrimitiveLiteralOp('int', 1),
         'q' => new PrimitiveLiteralOp('string', ''),
     ]
-);*/
+);
 
+/*
 $locations['channels.getAdminLog'][] = new CallOp(
     'channels.getAdminLog',
     [
@@ -151,7 +162,7 @@ $locations['channels.getAdminLog'][] = new CallOp(
         'limit' => new PrimitiveLiteralOp('int', 1),
         'q' => new PrimitiveLiteralOp('string', ''),
     ]
-);
+);*/
 
 $locations['bots.getPreviewMedias'][] = new CopyMethodCallOp('bots.getPreviewMedias');
 $locations['bots.getPreviewInfo'][] = new CopyMethodCallOp('bots.getPreviewInfo');
@@ -194,7 +205,7 @@ $locations['help.getPremiumPromo'][] = new CopyMethodCallOp('help.getPremiumProm
 $starMethods = [];
 foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
     $starMethods[$method] = true;
-    /*$locations['starsTransaction'][] = new CallOp(
+    $locations['starsTransaction'][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
             'peer' => new ExtractFromParentOp([[$method, 'peer']]),
@@ -207,7 +218,7 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
                 ]
             )),
         ]
-    );*/
+    );/*
     $locations[$method][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
@@ -229,7 +240,7 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
                 ]
             )),
         ]
-    );
+    );*/
 }
 $locations['attachMenuBot'][] = new CallOp(
     'messages.getAttachMenuBot',
@@ -307,7 +318,7 @@ $locations['messages.availableReactions'][] = new CallOp(
     ['hash' => new PrimitiveLiteralOp('int', 0)],
 );
 
-/*$locations['photo'][] = new CallOp(
+$locations['photo'][] = new CallOp(
     'photos.getUserPhotos',
     [
         'user_id' => new ExtractFromParentOp([['photos.getUserPhotos', 'user_id']]),
@@ -315,8 +326,8 @@ $locations['messages.availableReactions'][] = new CallOp(
         'max_id' => new CopyOp([['photo', 'id']]),
         'limit' => new PrimitiveLiteralOp('int', 1),
     ]
-);*/
-
+);
+/*
 $locations['photos.getUserPhotos'][] = new CallOp(
     'photos.getUserPhotos',
     [
@@ -329,7 +340,7 @@ $locations['photos.getUserPhotos'][] = new CallOp(
         ]),
         'limit' => new PrimitiveLiteralOp('int', 1),
     ]
-);
+);*/
 
 foreach (['photos.updateProfilePhoto', 'photos.uploadProfilePhoto'] as $method) {
     $locations[$method][] = new CallOp(
@@ -445,7 +456,7 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
 
 $validated = [];
 
-$tmp = new Ast(allowBackrefs: false);
+$tmp = new Ast(allowBackrefs: true, allowUnpacking: true);
 foreach (['Document' => 'document', 'Photo' => 'photo'] as $type => $constructor) {
     $stack = [[$constructor, 'file_reference']];
     $stackTypes = [$type => 1];
@@ -533,7 +544,7 @@ if ($diff) {
     throw new AssertionError("Leftover ops!");
 }
 
-$output = new Ast(allowBackrefs: false);
+$output = new Ast(allowBackrefs: true, allowUnpacking: false);
 foreach ($locations as $constructor => $ops) {
     foreach ($ops as $idx => $op) {
         $op->build(new TLContext($TL, $output, $constructor, $TL->isConstructor($constructor)));

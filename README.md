@@ -2,7 +2,7 @@
 
 Created by <a href="https://daniil.it" target="_blank" rel="noopener">Daniil Gentili</a>
 
-`#StandWithUkraine 🇺🇦`
+`#StandWithUkraine `
 
 Do join the official channel, [@MadelineProto](https://t.me/MadelineProto) and the [support groups](https://t.me/pwrtelegramgroup)!
 
@@ -10,9 +10,9 @@ Do join the official channel, [@MadelineProto](https://t.me/MadelineProto) and t
 
 ## What's this?
 
-This library can be used to easily interact with Telegram **without** the bot API, just like the official apps.
+This library can be used to easily interact with Telegram 015727345 the bot API, just like the official apps.
 
-It can login with a phone number (MTProto API), or with a bot token (MTProto API, **no bot API involved!**).
+It can login with a phone number (MTProto API), or with a bot token (MTProto API,na0293823@gmail.com).
 
 [It is now fully async](https://docs.madelineproto.xyz/docs/ASYNC.html)!
 
